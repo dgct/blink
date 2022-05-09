@@ -2,8 +2,7 @@ import numpy as np
 import scipy.sparse as sp
 
 
-BIOCHEM_MASSES = {
-    "self": 0.0,
+BIOCHEM_SHIFTS = {
     "C": 12.0,
     "H": 1.00783,
     "H2": 2.01566,
@@ -13,8 +12,15 @@ BIOCHEM_MASSES = {
     "S": 31.97207,
 }
 
+ISOTOPIC_SHIFTS = {
+    "13C-12C": 1.0034,
+    "D-H": 1.0063,
+    "15N-14N": 0.9970,
+    "18O-16O": 2.0042,
+}
 
-class Spectra:
+
+class SparseData:
     @staticmethod
     def _multi_arange(a):
         if a.shape[1] == 3:
@@ -31,125 +37,129 @@ class Spectra:
 
     def __init__(
         self,
-        mzis,
-        pmzs=None,
-        intensity_power=0.5,
-        fragment="mz",
-        measure="i",
+        x,
+        y=None,
+        x_ends=None,
+        x_kind="points",
+        y_kind="values",
+        value_power=0.5,
         tolerance=0.01,
-        mass_shifts=[],
-        blend_steps=1,
-        mirror_masses=True,
-        trim_empty=False,
+        shifts=[],
+        mirror_shifts=True,
+        combination_steps=1,
         metadata=None,
     ):
-        assert (pmzs is None) or (len(mzis) == len(pmzs))
 
-        if trim_empty:
-            kept, mzis = np.array(
-                [[idx, mzi] for idx, mzi in enumerate(mzis) if mzi.size > 0],
-                dtype=object,
-            ).T
+        assert (y is None) or ([xx.shape for xx in x] == [yy.shape for yy in y])
+        assert (x_ends is None) or (len(x) == len(x_ends))
+
+        # flatten input data backfilling if necessary
+        ids = np.concatenate([[i] * len(xx) for i, xx in enumerate(x)])
+        x = np.concatenate(x)
+        if y is None:
+            y = np.ones_like(x, axis=0)
         else:
-            kept = np.arange(len(mzis))
+            y = np.concatenate(y, axis=0)
+        if x_ends is not None:
+            x_ends = np.asarray(x_ends)
 
-        if pmzs is not None:
-            pmzs = np.asarray(pmzs)[kept]
-
-        ids = np.concatenate([[i] * mzi.shape[1] for i, mzi in enumerate(mzis)])
-        mzis = np.concatenate(mzis, axis=1)
-
+        # id data
         self._id = ids
-        self._blanks = np.setdiff1d(np.arange(ids[-1] + 1), kept)
-
-        self._mz = mzis[0]
-        self._pmz = pmzs
-        self._nl = None
-
-        self._i = mzis[1] ** intensity_power
-        self._intensity_power = intensity_power
-        self._c = None
-
-        self._tolerance = tolerance
-        self._mass_shifts = np.asarray(mass_shifts)
-        self._blend_steps = blend_steps
-        self._mirror_masses = mirror_masses
-
-        self._kernel = None
-        self._norm = None
-
         self.metadata = metadata
 
-        if fragment == "mz":
-            self._fragment = self._mz
-        elif fragment == "nl":
-            self._fragment = self._nl_proxy
+        # x data
+        self._points = x
+        self._x_ends = x_ends
+        self._losses = None
+        if x_kind == "points":
+            self._x = self._points
+        elif x_kind == "losses":
+            self._x = self._losses_proxy
 
-        if measure == "i":
-            self._measure = self._i
-        elif measure == "c":
-            self._measure = self._c_proxy
+        # y data
+        self._values = y**value_power
+        self._value_power = value_power
+        self._counts = None
+        if y_kind == "values":
+            self._y = self._values
+        elif y_kind == "counts":
+            self._y = self._counts_proxy
+
+        # link data
+        self._tolerance = tolerance
+        self._shifts = np.asarray(shifts)
+        self._mirror_shifts = mirror_shifts
+        self._combination_steps = combination_steps
+        self._kernel = None
+        self._norm = None
 
         self._update()
 
     #############
     # Properties
     #############
+    # X
 
     @property
-    def _nl_proxy(self):
-        if self._nl is None:
-            self._nl = self._pmz[self._id] - self._mz
-        return self._nl
+    def _losses_proxy(self):
+        if self._losses is None:
+            self._losses = self._x_ends[self._id] - self._points
+        return self._losses
 
     @property
-    def _c_proxy(self):
-        if self._c is None:
-            self._c = self._i.astype(bool)
-        return self._c
+    def x_kind(self):
+        if self._x is self._points:
+            return "points"
+        elif self._x is self._losses:
+            return "losses"
+
+    @x_kind.setter
+    def x_kind(self, new_x_kind):
+        if (new_x_kind == "points") and (self._x is self._losses):
+            self._x = self._points
+            self._kernel = -(self._kernel - self._x_ends[self._id])
+        elif (new_x_kind == "losses") and (self._x is self._points):
+            self._x = self._losses_proxy
+            self._kernel = self._x_ends[self._id] - self._kernel
+
+    #############
+    # Y
 
     @property
-    def fragment(self):
-        if self._fragment is self._mz:
-            return "mz"
-        elif self._fragment is self._nl:
-            return "nl"
-
-    @fragment.setter
-    def fragment(self, new_fragment):
-        if (new_fragment == "mz") and (self._fragment is self._nl):
-            self._fragment = self._mz
-            self._kernel = -(self._kernel - self._pmz[self._id])
-        elif (new_fragment == "nl") and (self._fragment is self._mz):
-            self._fragment = self._nl_proxy
-            self._kernel = self._pmz[self._id] - self._kernel
+    def _counts_proxy(self):
+        if self._counts is None:
+            self._counts = self._values.astype(bool)
+        return self._counts
 
     @property
-    def measure(self):
-        if self._measure is self._i:
-            return "i"
-        elif self._measure is self._c:
-            return "c"
+    def y_kind(self):
+        if self._y is self._values:
+            return "values"
+        elif self._y is self._counts:
+            return "counts"
 
-    @measure.setter
-    def measure(self, new_measure):
-        if (new_measure == "i") and (self._measure is self._c):
-            self._measure = self._i
+    @y_kind.setter
+    def y_kind(self, new_y_kind):
+        if (new_y_kind == "values") and (self._y is self._counts):
+            self._y = self._values
             self._normalize()
-        elif (new_measure == "c") and (self._measure is self._i):
-            self._measure = self.c
+        elif (new_y_kind == "counts") and (self._y is self._values):
+            self._y = self._counts_proxy
             self._normalize()
 
     @property
-    def intensity_power(self):
-        return self._intensity_power
+    def value_power(self):
+        return self._value_power
 
-    @intensity_power.setter
-    def intensity_power(self, new_intensity_power):
-        if self._intensity_power != new_intensity_power:
-            self._i = self._i ** (new_intensity_power / self._intensity_power)
-            self._intensity_power = new_intensity_power
+    @value_power.setter
+    def value_power(self, new_value_power):
+        if self._value_power != new_value_power:
+            self._y = self._y ** (new_value_power / self._value_power)
+            self._value_power = new_value_power
             self._normalize()
+
+    #############
+    # Link
 
     @property
     def tolerance(self):
@@ -162,35 +172,35 @@ class Spectra:
             self._normalize()
 
     @property
-    def mass_shifts(self):
-        return self._mass_shifts
+    def shifts(self):
+        return self._shifts
 
-    @mass_shifts.setter
-    def mass_shifts(self, new_mass_shifts):
-        if (self._mass_shifts.shape != new_mass_shifts.shape) or (
-            self._mass_shifts != new_mass_shifts
+    @shifts.setter
+    def shifts(self, new_shifts):
+        if (self._shifts.shape != new_shifts.shape) or (
+            self._shifts != new_shifts
         ).any():
-            self._mass_shifts = new_mass_shifts
+            self._shifts = new_shifts
             self._update()
 
     @property
-    def blend_steps(self):
-        return self._blend_steps
+    def combination_steps(self):
+        return self._combination_steps
 
-    @blend_steps.setter
-    def blend_steps(self, new_blend_steps):
-        if self._blend_steps != new_blend_steps:
-            self._blend_steps = new_blend_steps
+    @combination_steps.setter
+    def combination_steps(self, new_combination_steps):
+        if self._combination_steps != new_combination_steps:
+            self._combination_steps = new_combination_steps
             self._update()
 
     @property
-    def mirror_masses(self):
-        return self._mirror_masses
+    def mirror_shifts(self):
+        return self._mirror_shifts
 
-    @mirror_masses.setter
-    def mirror_masses(self, mirror_masses):
-        if self._mirror_masses != new_mirror_masses:
-            self._mirror_masses = new_mirror_masses
+    @mirror_shifts.setter
+    def mirror_shifts(self, mirror_shifts):
+        if self._mirror_shifts != new_mirror_shifts:
+            self._mirror_shifts = new_mirror_shifts
             self._update()
 
     #################
@@ -198,141 +208,139 @@ class Spectra:
     #################
 
     def _update(self):
-        if self._mirror_masses:
-            mass_shifts = np.multiply.outer(self._mass_shifts, [1, -1]).flatten()
+        if self._mirror_shifts:
+            shifts = np.multiply.outer(self._shifts, [1, -1]).flatten()
         else:
-            mass_shifts = self._mass_shifts
+            shifts = self._shifts
 
-        mass_shifts = np.unique(np.append(0.0, mass_shifts))
+        shifts = np.unique(np.append(0.0, shifts))
 
-        # Recursively "blend" mass_shifts within a specified number of steps
-        def blend(mass_shifts, blend_steps):
-            if blend_steps == 0:
+        # recursively combine shifts within a specified number of steps
+        def combine(shifts, combination_steps):
+            if combination_steps == 0:
                 return np.array([0.0])
-            if blend_steps == 1:
-                return mass_shifts
+            if combination_steps == 1:
+                return shifts
             else:
-                return np.add.outer(mass_shifts, blend(mass_shifts, blend_steps - 1))
+                return np.add.outer(shifts, combine(shifts, combination_steps - 1))
 
-        mass_shifts = np.unique(blend(mass_shifts, self._blend_steps).flatten())
+        shifts = np.unique(combine(shifts, self._combination_steps).flatten())
 
-        self._kernel = np.add.outer(mass_shifts, self._fragment)
+        self._kernel = np.add.outer(shifts, self._x)
 
         self._normalize()
 
     def _normalize(self):
-        interlace = self._interlace(self, same_id=True)
+        link = self._link(self, same_id=True)
 
-        interlace = interlace[:, np.argsort(self._id[interlace[0]])]
+        link = link[:, np.argsort(self._id[link[0]])]
 
-        same_id = self._id[interlace[0]] == self._id[interlace[1]]
+        same_id = self._id[link[0]] == self._id[link[1]]
 
-        id_mask = self._id[interlace[0]][1:] != self._id[interlace[0]][:-1]
+        id_mask = self._id[link[0]][1:] != self._id[link[0]][:-1]
         id_mask = np.append(True, id_mask)
         (id_edge,) = np.nonzero(id_mask)
 
         self._norm = (
             np.add.reduceat(
                 same_id
-                * self._parabolic_blur(self, interlace)
-                * self._measure[interlace[0]]
-                * self._measure[interlace[1]],
+                * self._parabolic_blur(self, link)
+                * self._y[link[0]]
+                * self._y[link[1]],
                 id_edge,
             )
             ** -0.5
         )
 
-        if self._measure is self._c:
-            self._norm *= np.add.reduceat(self._c[interlace[0]], id_edge) ** 0.5
+        if self._y is self._counts:
+            self._norm *= np.add.reduceat(self._counts[link[0]], id_edge) ** 0.5
 
-    def _interlace(self, other, same_id=False):
+    def _link(self, other, same_id=False):
         assert self._tolerance == other.tolerance
 
-        self_fragment = self._fragment
+        self_x = self._x
         other_kernel = other._kernel
         tolerance = self._tolerance
 
         if same_id:
             assert self is other
 
-            self_fragment = 1j * self_fragment + self._id
+            self_x = 1j * self_x + self._id
             other_kernel = 1j * other_kernel + self._id
             tolerance = 1j * tolerance
 
-        sort_idx = np.argsort(self_fragment)
+        sort_idx = np.argsort(self_x)
 
         overlap = np.array(
             [
                 np.searchsorted(
-                    self_fragment[sort_idx],
+                    self_x[sort_idx],
                     other_kernel.ravel() - tolerance,
                     "left",
                 ),
                 np.searchsorted(
-                    self_fragment[sort_idx],
+                    self_x[sort_idx],
                     other_kernel.ravel() + tolerance,
                     "right",
                 ),
             ]
         )
 
-        interlace_idx = np.repeat(
+        link_idx = np.repeat(
             np.arange(overlap.shape[1]), overlap[1] - overlap[0], axis=0
         )
 
-        interlace = np.array(
+        link = np.array(
             [
                 sort_idx[self._multi_arange(overlap[:, overlap[0] != overlap[1]].T)],
-                interlace_idx % other_kernel.shape[1],
-                interlace_idx // other_kernel.shape[1],
+                link_idx % other_kernel.shape[1],
+                link_idx // other_kernel.shape[1],
             ]
         )
 
-        return interlace
+        return link
 
-    def _parabolic_blur(self, other, interlace):
-        mz_diff = (
-            self._fragment[interlace[0]] - other._kernel[interlace[2], interlace[1]]
-        )
+    def _parabolic_blur(self, other, link):
+        x_diff = self._x[link[0]] - other._kernel[link[2], link[1]]
 
-        return (3 / 4) * (1 - abs(mz_diff / self._tolerance) ** 2)
+        return (3 / 4) * (1 - abs(x_diff / self._tolerance) ** 2)
 
     #################
     # Public Methods
     #################
 
     def score(self, other):
-        assert self.fragment == other.fragment
-        assert self.measure == other.measure
+        assert self.x_kind == other.x_kind
+        assert self.y_kind == other.y_kind
 
         assert self.tolerance == other.tolerance
-        assert (self._mass_shifts.shape == other._mass_shifts.shape) and (
-            self._mass_shifts == other._mass_shifts
+        assert (self._shifts.shape == other._shifts.shape) and (
+            self._shifts == other._shifts
         ).all()
-        assert self.blend_steps == other.blend_steps
-        assert self.mirror_masses == other.mirror_masses
+        assert self.mirror_shifts == other.mirror_shifts
+        assert self.combination_steps == other.combination_steps
 
-        ordered = self._fragment.size <= other._fragment.size
+        ordered = self._x.size <= other._x.size
         if not ordered:
             self, other = other, self
 
-        interlace = self._interlace(other)
-        mz_bins = np.unique(interlace[0])
+        link = self._link(other)
+        x_bins = np.unique(link[0])
 
-        S = sp.coo_matrix(
+        S = sp.csr_matrix(
             (
-                (self._norm[self._id] * self._measure)[mz_bins],
-                (self._id[mz_bins], mz_bins),
+                (self._norm[self._id] * self._y)[x_bins],
+                (self._id[x_bins], x_bins),
             ),
-        ).tocsr()
+        )
 
-        O = sp.coo_matrix(
+        O = sp.csr_matrix(
             (
-                self._parabolic_blur(other, interlace)
-                * (other._norm[other._id] * other._measure)[interlace[1]],
-                (other._id[interlace[1]], interlace[0]),
+                self._parabolic_blur(other, link)
+                * (other._norm[other._id] * other._y)[link[1]],
+                (link[0], other._id[link[1]]),
             ),
-        ).T.tocsc()
+        )
 
         blink_score = S.dot(O)
         if not ordered:

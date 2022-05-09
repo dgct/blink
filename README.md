@@ -1,8 +1,24 @@
 # BLINK
 
-BLINK (BLended INterval Kernels) is a Python library for efficiently
-networking fragmentation mass spectra by all-by-all cosine scores and number of matching ions
-with allowances for different mz/nl tolerances and combinatorial mass differences.
+Blurry linkage (BLINK) is a Python library 
+for fast and efficient cosine scoring of sparse data 
+without binning. Orginally designed for fragmentation 
+mass spectra, BLINK has been abstracted for use with 
+arbitrary data types while maintaining capabilities
+relevent to mass spec like neutral-losses and mass shifts.
+
+## Use cases:
+
+- Quickly score experimental MS2 against spectral libraries.
+(~20 million comparisons per second on 2021 Mac Book)
+
+- Combine MS1, MS2, LC, and/or IM similarities
+to find redundant features to collapse.
+
+- Find long range biochemical similarity using MS2 
+and combinatorial biochemical mass shifts.
+
+- Detect isotopologues with MS1 and isotopic mass shifts.
 
 ## Installation
 
@@ -11,8 +27,6 @@ Use the package manager [conda](https://docs.conda.io/projects/conda/en/latest/u
 ```bash
 conda env create -f environment-base.yml
 ```
-
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/biorack/blink/HEAD)
 
 ## Python dependencies
 - python3.9
