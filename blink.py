@@ -21,20 +21,6 @@ ISOTOPIC_SHIFTS = {
 
 
 class SparseData:
-    @staticmethod
-    def _multi_arange(a):
-        if a.shape[1] == 3:
-            steps = a[:, 2]
-        else:
-            steps = np.ones(a.shape[0], dtype=int)
-
-        lens = ((a[:, 1] - a[:, 0]) + steps - np.sign(steps)) // steps
-        b = np.repeat(steps, lens)
-        ends = (lens - 1) * steps + a[:, 0]
-        b[0] = a[0, 0]
-        b[lens[:-1].cumsum()] = a[1:, 0] - ends[:-1]
-        return b.cumsum()
-
     def __init__(
         self,
         x,
@@ -50,14 +36,14 @@ class SparseData:
         metadata=None,
     ):
 
-        assert (y is None) or ([xx.shape for xx in x] == [yy.shape for yy in y])
+        assert (y is None) or ([xi.shape for xi in x] == [yj.shape for yj in y])
         assert (x_ends is None) or (len(x) == len(x_ends))
 
         # flatten input data backfilling if necessary
-        ids = np.concatenate([[i] * len(xx) for i, xx in enumerate(x)])
+        ids = np.concatenate([[i] * len(xi) for i, xi in enumerate(x)])
         x = np.concatenate(x)
         if y is None:
-            y = np.ones_like(x, axis=0)
+            y = np.ones_like(x)
         else:
             y = np.concatenate(y, axis=0)
         if x_ends is not None:
@@ -292,7 +278,7 @@ class SparseData:
 
         link = np.array(
             [
-                sort_idx[self._multi_arange(overlap[:, overlap[0] != overlap[1]].T)],
+                sort_idx[_multi_arange(overlap[:, overlap[0] != overlap[1]].T)],
                 link_idx % other_kernel.shape[1],
                 link_idx // other_kernel.shape[1],
             ]
@@ -347,3 +333,17 @@ class SparseData:
             blink_score = blink_score.T
 
         return blink_score
+
+
+def _multi_arange(a):
+    if a.shape[1] == 3:
+        steps = a[:, 2]
+    else:
+        steps = np.ones(a.shape[0], dtype=int)
+
+    lens = ((a[:, 1] - a[:, 0]) + steps - np.sign(steps)) // steps
+    b = np.repeat(steps, lens)
+    ends = (lens - 1) * steps + a[:, 0]
+    b[0] = a[0, 0]
+    b[lens[:-1].cumsum()] = a[1:, 0] - ends[:-1]
+    return b.cumsum()
