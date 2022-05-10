@@ -10,7 +10,7 @@ relevent to mass spec like neutral-losses and mass shifts.
 ## Use cases:
 
 - Quickly score experimental MS2 against spectral libraries.
-(~20 million comparisons per second on 2021 Mac Book)
+(~20 million comparisons per second on 2021 MacBook)
 
 - Combine MS1, MS2, LC, and/or IM similarities
 to find redundant features to collapse.
@@ -22,10 +22,10 @@ and combinatorial biochemical mass shifts.
 
 ## Installation
 
-Use the package manager [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/index.html) to install environment-base.yml for minimum requirements.
+Use the package manager [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/index.html) to install environment.yml for minimum requirements.
 
 ```bash
-conda env create -f environment-base.yml
+conda env create -f environment.yml
 ```
 
 ## Python dependencies

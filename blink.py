@@ -1,7 +1,5 @@
 import numpy as np
 import scipy.sparse as sp
-from scipy.sparse.csgraph import connected_components
-
 
 BIOCHEM_SHIFTS = {
     "C": 12.0,
@@ -348,55 +346,3 @@ def _multi_arange(a):
     b[0] = a[0, 0]
     b[lens[:-1].cumsum()] = a[1:, 0] - ends[:-1]
     return b.cumsum()
-
-
-def peaks_to_features(
-    df,
-    mz_tolerance=0.0025,
-    rt_tolerance=1.2,
-    im_tolerance=3.0,
-    score_cutoff=0.75,
-):
-    """
-    Finds peaks that are within mz, rt, and im
-    tolerance of one another with allowance for
-    isotopologues and inplace assigns a feature id.
-    Additionally assigns the mz delta between each
-    peak and its lightest isotopologue.
-    ----------
-    df: pd.DataFrame
-        data frame containing peak data
-    mz_tolerance: float
-        radius to consider mzs similar
-    rt_tolerance: float
-        radius to consider rts similar
-    im_tolerance: float
-        radius to consider ims similar
-    score_cutoff: float
-        minimum score for peaks to be from same feature
-    """
-
-    mz = list(np.array(df.mz).astype(float)[:, None])
-    rt = list(np.array(df.rt).astype(float)[:, None])
-    im = list(np.array(df.spectrum).astype(float)[:, None])
-
-    mz = SparseData(
-        mz,
-        tolerance=mz_tolerance,
-        shifts=[(ISOTOPIC_SHIFTS["13C-12C"] / charge) for charge in (1, 2, 3)],
-        mirror_shifts=False,
-    )
-    rt = SparseData(rt, tolerance=rt_tolerance)
-    im = SparseData(im, tolerance=im_tolerance)
-
-    mz = mz.score(mz)
-    rt = rt.score(rt)
-    im = im.score(im)
-
-    feature_score = mz.multiply(rt).multiply(im)
-
-    n_components, feature_id = connected_components(feature_score >= score_cutoff)
-
-    df["feature_id"] = feature_id
-    df["delta_mz"] = df["mz"] - df.groupby(["feature_id"])["mz"].transform(min)
-    df["peak_num"] = df.groupby(["feature_id"])["mz"].rank().astype(np.int8)
