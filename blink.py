@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
+from scipy.sparse.csgraph import connected_components
 
 
 BIOCHEM_SHIFTS = {
