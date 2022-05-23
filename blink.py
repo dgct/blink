@@ -254,9 +254,9 @@ class vector:
 
     def transpose(self):
         result = self.__class__(
-            y[0],
-            x[0],
-            data,
+            self.y[0],
+            self.x[0],
+            self.data,
             self.y_tolerance,
             self.x_tolerance,
             self.y_transform,
