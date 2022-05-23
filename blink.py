@@ -253,16 +253,15 @@ class vector:
         return copy.copy(self)
 
     def transpose(self):
-        result = self.copy()
-
-        result.x, result.y = result.y, result.x
-        result.x_tolerance, result.y_tolerance = result.y_tolerance, result.x_tolerance
-        result.x_transform, result.y_transform = result.y_transform, result.x_transform
-
-        idx_sort = np.argsort(result.y[0] + 1j * result.x[0])
-        result.x = result.x[:, idx_sort]
-        result.y = result.y[:, idx_sort]
-        result.data = result.data[idx_sort]
+        result = self.__class__(
+            y[0],
+            x[0],
+            data,
+            self.y_tolerance,
+            self.x_tolerance,
+            self.y_transform,
+            self.x_transform,
+        )
 
         return result
 
