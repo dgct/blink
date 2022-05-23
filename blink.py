@@ -140,14 +140,10 @@ class vector:
             ):
                 raise ValueError("tolerances and transforms not equal between vectors.")
 
-            x = np.concatenate([self.x[0], other.x[0]])
-            y = np.concatenate([self.y[0], other.y[0]])
-            data = np.concatenate([self.data, other.data])
-
             result = self.__class__(
-                x,
-                y,
-                data,
+                np.concatenate([self.x[0], other.x[0]]),
+                np.concatenate([self.y[0], other.y[0]]),
+                np.concatenate([self.data, other.data]),
                 self.x_tolerance,
                 self.y_tolerance,
                 self.x_transform,
@@ -226,17 +222,13 @@ class vector:
         linked = np.append(True, linked)
         (linked_edge,) = np.nonzero(linked)
 
-        x = self.x[0, link[0]]
-        y = other.y[0, link[1]]
-        data = np.add.reduceat(
-            self._blur(other, link) * self.data[link[0]] * other.data[link[1]],
-            linked_edge,
-        )
-
         result = self.__class__(
-            x,
-            y,
-            data,
+            self.x[0, link[0]],
+            other.y[0, link[1]],
+            np.add.reduceat(
+                self._blur(other, link) * self.data[link[0]] * other.data[link[1]],
+                linked_edge,
+            ),
             self.x_tolerance,
             other.y_tolerance,
             self.x_transform,
@@ -271,14 +263,11 @@ class vector:
 
     def diag(self):
         same = self.x[0] == self.y[0]
-        x = self.x[0, same]
-        y = self.y[0, same]
-        data = self.data[same]
 
         result = self.__class__(
-            x,
-            y,
-            data,
+            self.x[0, same],
+            self.y[0, same],
+            self.data[same],
             self.x_tolerance,
             self.y_tolerance,
             self.x_transform,
