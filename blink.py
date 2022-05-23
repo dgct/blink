@@ -34,14 +34,14 @@ class vector:
         self.x_transform = x_transform
         self.y_transform = y_transform
 
-        idx_sort = np.argsort(y + 1j * x)
+        # idx_sort = np.argsort(y + 1j * x)
 
-        self.x = x_transform(x[idx_sort])
-        self.y = y_transform(y[idx_sort])
-        self.data = data[idx_sort]
+        self.x = x_transform(x)
+        self.y = y_transform(y)
+        self.data = data
 
-        self._squeeze()
-        self._prune()
+        # self._squeeze()
+        # self._prune()
 
     #################
     # Blink Methods
