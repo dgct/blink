@@ -34,8 +34,6 @@ class vector:
         self.x_transform = x_transform
         self.y_transform = y_transform
 
-        # idx_sort = np.argsort(y + 1j * x)
-
         self.x = x_transform(x)
         self.y = y_transform(y)
         self.data = data
@@ -56,15 +54,17 @@ class vector:
         return 1 - (diff / self.y_tolerance) ** 2
 
     def _link(self, other):
+        sort_idx = np.argsort(self.y[0])
+
         overlap = np.array(
             [
                 np.searchsorted(
-                    self.y[0],
+                    self.y[0, sort_idx],
                     other.x.ravel() - self.y_tolerance,
                     "left",
                 ),
                 np.searchsorted(
-                    self.y[0],
+                    self.y[0, sort_idx],
                     other.x.ravel() + self.y_tolerance,
                     "right",
                 ),
@@ -74,10 +74,9 @@ class vector:
         link_idx = np.repeat(
             np.arange(overlap.shape[1]), overlap[1] - overlap[0], axis=0
         )
-
         link = np.array(
             [
-                _multi_arange(overlap[:, overlap[0] != overlap[1]].T),
+                sort_idx[_multi_arange(overlap[:, overlap[0] != overlap[1]].T)],
                 link_idx % other.x.shape[1],
                 link_idx // other.x.shape[1],
             ]
