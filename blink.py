@@ -22,31 +22,38 @@ class vector:
             data = np.ones_like(x)
         data = np.asarray(data)
 
-        for name, var in zip(["x", "y", "data"], [x, y, data]):
-            if var.ndim != 1 or var.dtype.kind not in "biufcmM":
-                raise ValueError("{} is mishapen or non-numeric.".format(name))
+        for name, var in zip(["x", "y"], [x, y, data]):
+            if var.ndim != 1 or var.dtype.kind not in "iuf":
+                raise ValueError(
+                    "{} is mishapen or not castable to 32 bit numeric".format(name)
+                )
+
+        if data.ndim != 1 or data.dtype.kind not in "biufc":
+            raise ValueError("data is mishapen or non-numeric")
 
         if not (len(x) == len(y) == len(data)):
-            raise ValueError("x, y, and data not equal length.")
+            raise ValueError("x, y, and data array must all be same length")
 
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
         self.x_transform = x_transform
         self.y_transform = y_transform
 
-        self.x = x_transform(x)
-        self.y = y_transform(y)
-        self.data = data
+        sort_idx = np.argsort(y, kind="merge")
 
-        # self._squeeze()
-        # self._prune()
+        self.x = x_transform(x.astype(x.dtype.str[:2] + "4")[sort_idx])
+        self.y = y_transform(y.astype(y.dtype.str[:2] + "4")[sort_idx])
+        self.data = data[sort_idx]
+
+        self._squeeze()
+        self._prune()
 
     #################
     # Blink Methods
     #################
 
     def _blur(self, other, link):
-        diff = self.y[0, link[0]] - other.x[link[2], link[1]]
+        diff = self.y[0, link[0]].real - other.x[link[2], link[1]].real
 
         if np.isclose(diff, 0).all():
             return 1
@@ -54,17 +61,15 @@ class vector:
         return 1 - (diff / self.y_tolerance) ** 2
 
     def _link(self, other):
-        sort_idx = np.argsort(self.y[0])
-
         overlap = np.array(
             [
                 np.searchsorted(
-                    self.y[0, sort_idx],
+                    self.y[0],
                     other.x.ravel() - self.y_tolerance,
                     "left",
                 ),
                 np.searchsorted(
-                    self.y[0, sort_idx],
+                    self.y[0],
                     other.x.ravel() + self.y_tolerance,
                     "right",
                 ),
@@ -76,7 +81,7 @@ class vector:
         )
         link = np.array(
             [
-                sort_idx[_multi_arange(overlap[:, overlap[0] != overlap[1]].T)],
+                _multi_arange(overlap[:, overlap[0] != overlap[1]].T),
                 link_idx % other.x.shape[1],
                 link_idx // other.x.shape[1],
             ]
@@ -110,7 +115,7 @@ class vector:
 
     def _operate(self, other, func):
         if not isinstance(other, (float, int, complex)):
-            raise ValueError("{} is not a scalar.".format(other))
+            raise ValueError("{} is not a scalar".format(other))
         self.data = func(self.data, other)
 
     def __eq__(self, other):
@@ -137,7 +142,9 @@ class vector:
                 and (self.x_transform == other.x_transform)
                 and (self.y_transform == other.y_transform)
             ):
-                raise ValueError("tolerances and transforms not equal between vectors.")
+                raise ValueError(
+                    "tolerances and transforms must be equal between vectors"
+                )
 
             result = self.__class__(
                 np.concatenate([self.x[0], other.x[0]]),
@@ -215,19 +222,28 @@ class vector:
             )
 
         link = self._link(other)
+        y_bins = np.unique(link[0])
 
-        _, linked = np.unique(link, axis=1, return_inverse=True)
-        linked = linked[1:] != linked[:-1]
-        linked = np.append(True, linked)
-        (linked_edge,) = np.nonzero(linked)
+        left = sp.csr_matrix(
+            (
+                self.data[y_bins],
+                (self.x[0, y_bins].view(dtype=np.uint32), y_bins),
+            ),
+        )
+
+        right = sp.csr_matrix(
+            (
+                self._blur(other, link) * other.data[link[1]],
+                (link[0], other.y[0, link[1]].view(dtype=np.uint32)),
+            ),
+        )
+
+        result = left.dot(right).tocoo()
 
         result = self.__class__(
-            self.x[0, link[0]],
-            other.y[0, link[1]],
-            np.add.reduceat(
-                self._blur(other, link) * self.data[link[0]] * other.data[link[1]],
-                linked_edge,
-            ),
+            result.row.view(dtype=self.x.dtype),
+            result.col.view(dtype=other.y.dtype),
+            result.data,
             self.x_tolerance,
             other.y_tolerance,
             self.x_transform,
@@ -276,13 +292,28 @@ class vector:
         return result
 
     def norm(self):
-        result = (self @ self.T).diag()
+        result = self.T
 
-        result **= -0.5
-        result.y_tolerance = 0
-        self.x_tolerance = 0
+        link = result._link(self)
 
-        result = result @ self
+        same = result.y[0, link[0]] == self.x[0, link[1]]
+        mask = link[1, 1:] != link[1, :-1]
+        mask = np.append(True, mask)
+        (edge,) = np.nonzero(mask)
+
+        norm_ = (
+            np.add.reduceat(
+                same
+                * result._blur(self, link)
+                * result.data[link[0]]
+                * self.data[link[1]],
+                edge,
+            )
+            ** -0.5
+        )
+
+        result = result.T
+        result.data = norm_ * result.data
 
         return result
 
@@ -294,16 +325,19 @@ class vector:
         return self @ other.T
 
     def tocoo(self):
-        result = sp.coo_matrix(
+        return sp.coo_matrix(
             (
                 self.data,
-                (rankdata(self.x[0], "dense") - 1, rankdata(self.y[0], "dense") - 1),
+                (self.x[0].view(np.uint32), self.y[0].view(np.uint32)),
             )
         )
-        return result
 
     def toarray(self):
-        return self.tocoo().toarray()
+        result = self.copy()
+        result.x = rankdata(result.x[0], "dense").astype(np.uint32)[None, :] - 1
+        result.y = rankdata(result.y[0], "dense").astype(np.uint32)[None, :] - 1
+
+        return result.tocoo().toarray()
 
 
 def _multi_arange(a):
