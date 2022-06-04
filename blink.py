@@ -53,7 +53,7 @@ class vector:
     #################
 
     def _blur(self, other, link):
-        diff = self.y[0, link[0]].real - other.x[link[2], link[1]].real
+        diff = self.y[0, link[0]] - other.x[link[2], link[1]]
 
         if np.isclose(diff, 0).all():
             return 1
@@ -63,22 +63,17 @@ class vector:
     def _link(self, other):
         overlap = np.array(
             [
-                np.searchsorted(
-                    self.y[0],
-                    other.x.ravel() - self.y_tolerance,
-                    "left",
-                ),
-                np.searchsorted(
-                    self.y[0],
-                    other.x.ravel() + self.y_tolerance,
-                    "right",
-                ),
+                np.searchsorted(self.y[0], other.x.ravel() - self.y_tolerance, "left"),
+                np.searchsorted(self.y[0], other.x.ravel() + self.y_tolerance, "right"),
             ]
         )
 
         link_idx = np.repeat(
-            np.arange(overlap.shape[1]), overlap[1] - overlap[0], axis=0
+            np.arange(overlap.shape[1]),
+            overlap[1] - overlap[0],
+            axis=0,
         )
+
         link = np.array(
             [
                 _multi_arange(overlap[:, overlap[0] != overlap[1]].T),
@@ -114,8 +109,11 @@ class vector:
     #################
 
     def _operate(self, other, func):
-        if not isinstance(other, (float, int, complex)):
-            raise ValueError("{} is not a scalar".format(other))
+        if (
+            not isinstance(other, (float, int, complex))
+            and other.dtype.kind not in "iufc"
+        ):
+            raise ValueError("{} is not a scalar or array of shape data".format(other))
         self.data = func(self.data, other)
 
     def __eq__(self, other):
@@ -292,28 +290,28 @@ class vector:
         return result
 
     def norm(self):
-        result = self.T
+        result = self.copy()
+        result.x = result.x[[0]]
+        temp = result.T
 
-        link = result._link(self)
+        link = temp._link(result)
+        result.x = self.x
 
-        same = result.y[0, link[0]] == self.x[0, link[1]]
+        same = temp.y[0, link[0]] == result.x[0, link[1]]
         mask = link[1, 1:] != link[1, :-1]
         mask = np.append(True, mask)
         (edge,) = np.nonzero(mask)
 
-        norm_ = (
+        result *= (
             np.add.reduceat(
                 same
-                * result._blur(self, link)
-                * result.data[link[0]]
-                * self.data[link[1]],
+                * temp._blur(result, link)
+                * temp.data[link[0]]
+                * result.data[link[1]],
                 edge,
             )
             ** -0.5
         )
-
-        result = result.T
-        result.data = norm_ * result.data
 
         return result
 
