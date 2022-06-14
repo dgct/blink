@@ -10,7 +10,7 @@ such as neutral-losses and mass shifts.
 ## Use cases:
 
 - Quickly score experimental MS2 against spectral libraries.
-(~20 million comparisons per second on 2021 MacBook)
+(~20 million comparisons/second on 2021 MacBook)
 
 - Combine MS1, MS2, LC, and/or IM similarities
 to find redundant features to collapse.
@@ -28,21 +28,21 @@ Use the package manager [conda](https://docs.conda.io/projects/conda/en/latest/u
 conda env create -f environment.yml
 ```
 
+That said, BLINK's dependencies likely exist in most production environments already.
+
 ## Python dependencies
 - python3.9
 - numpy
 - scipy
 
 ## Math
-The BLINK vectors are triplets of real numbers which represent a value at a specified 2d coordinate.
-Vector addition is accomplished by simply appending vectors.
-Vector multiplication is defined as:
-    X<sub>ij</sub>Y<sub>lm</sub> = (K(j,l)XY)<sub>im</sub>
-where K is a kernel function describing the similarity of j and l.
+BLINK vectors are comprised of triplets of real numbers which represent values at 2d coordinates.
+Vector addition is defined as vector concatenation while vector multiplication is defined as:
+$$ X_{ij}*Y_{lm} = K(j,l)(X*Y)_{im} $$
+where K is a kernel function describing the similarity between j and l.
+In other words, BLINK "blurs" values together that are "linked" in coordinate space.
 
-For K(x,y) = {1 if x==y else 0} where x,y are natural numbers, 
-BLINK vector multiplication behaves like matrix multiplication 
-where coordinates act as rows and columns.
+Matrix multiplication is a special case of BLINK vector multiplication when $K(x,y) = \begin{cases} 1 \text{ if } x=y \\ 0 \text{ otherwise} \end{cases}$ and coordinates x and y are natural numbers.
 
 
 ## Contributing
