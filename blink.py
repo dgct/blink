@@ -12,18 +12,16 @@ class vector:
         data=None,
         x_tolerance=0.0,
         y_tolerance=0.0,
-        x_transform=lambda x: np.array([x]),
-        y_transform=lambda y: np.array([y]),
     ):
 
-        x = np.asarray(x)
-        y = np.asarray(y)
+        x = np.array(x, copy=False, ndmin=2)
+        y = np.array(y, copy=False, ndmin=2)
         if data is None:
             data = np.ones_like(x)
         data = np.asarray(data)
 
         for name, var in zip(["x", "y"], [x, y, data]):
-            if var.ndim != 1 or var.dtype.kind not in "iuf":
+            if var.ndim != 2 or var.dtype.kind not in "iuf":
                 raise ValueError(
                     "{} is mishapen or not castable to 32 bit numeric".format(name)
                 )
@@ -31,18 +29,15 @@ class vector:
         if data.ndim != 1 or data.dtype.kind not in "biufc":
             raise ValueError("data is mishapen or non-numeric")
 
-        if not (len(x) == len(y) == len(data)):
+        if not (len(x[0]) == len(y[0]) == len(data)):
             raise ValueError("x, y, and data array must all be same length")
 
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
-        self.x_transform = x_transform
-        self.y_transform = y_transform
 
-        sort_idx = np.argsort(y, kind="merge")
-
-        self.x = x_transform(x.astype(x.dtype.str[:2] + "4")[sort_idx])
-        self.y = y_transform(y.astype(y.dtype.str[:2] + "4")[sort_idx])
+        sort_idx = np.argsort(y[0], kind="merge")
+        self.x = x.astype(x.dtype.str[:2] + "4")[:, sort_idx]
+        self.y = y.astype(y.dtype.str[:2] + "4")[:, sort_idx]
         self.data = data[sort_idx]
 
         self._squeeze()
@@ -140,8 +135,6 @@ class vector:
                 np.concatenate([self.data, other.data]),
                 self.x_tolerance,
                 self.y_tolerance,
-                self.x_transform,
-                self.y_transform,
             )
 
             return result
@@ -231,8 +224,6 @@ class vector:
             result.data,
             self.x_tolerance,
             other.y_tolerance,
-            self.x_transform,
-            other.y_transform,
         )
 
         return result
@@ -251,8 +242,6 @@ class vector:
             self.data,
             self.y_tolerance,
             self.x_tolerance,
-            self.y_transform,
-            self.x_transform,
         )
 
         return result
@@ -270,8 +259,6 @@ class vector:
             self.data[same],
             self.x_tolerance,
             self.y_tolerance,
-            self.x_transform,
-            self.y_transform,
         )
 
         return result
@@ -307,6 +294,14 @@ class vector:
         result.y = rankdata(result.y[0], "dense").astype(np.uint32)[None, :] - 1
 
         return result.tocoo().toarray()
+
+    def save(self, file):
+        np.savez(file, **self.__dict__)
+
+
+def load(file):
+    result = vector(**np.load(file))
+    return result
 
 
 def _multi_arange(a):
