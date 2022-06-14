@@ -130,8 +130,8 @@ class vector:
     def __add__(self, other):
         if isinstance(other, self.__class__):
             result = self.__class__(
-                np.concatenate([self.x[0], other.x[0]]),
-                np.concatenate([self.y[0], other.y[0]]),
+                np.concatenate([self.x, other.x]),
+                np.concatenate([self.y, other.y]),
                 np.concatenate([self.data, other.data]),
                 self.x_tolerance,
                 self.y_tolerance,
@@ -237,8 +237,8 @@ class vector:
 
     def transpose(self):
         result = self.__class__(
-            self.y[0],
-            self.x[0],
+            self.y,
+            self.x,
             self.data,
             self.y_tolerance,
             self.x_tolerance,
@@ -254,8 +254,8 @@ class vector:
         same = self.x[0] == self.y[0]
 
         result = self.__class__(
-            self.x[0, same],
-            self.y[0, same],
+            self.x[:, same],
+            self.y[:, same],
             self.data[same],
             self.x_tolerance,
             self.y_tolerance,
