@@ -1,11 +1,11 @@
 # BLINK
 
-Blurry linkage (BLINK) is a Python library 
-for fast and efficient cosine scoring of sparse data 
-without binning. Orginally designed for fragmentation 
-mass spectra, BLINK has been abstracted for use with 
-arbitrary data types while maintaining capabilities
-relevent to mass spec like neutral-losses and mass shifts.
+Blur and Link (BLINK) is a Python library that acts 
+as an abstraction of sparse matrices to enable fast 
+and efficient cosine scoring across noisy dimensions. 
+Originally designed for fragmentation mass spectra, 
+BLINK maintains capabilities relevent to mass spec
+such as neutral-losses and mass shifts.
 
 ## Use cases:
 
@@ -32,6 +32,17 @@ conda env create -f environment.yml
 - python3.9
 - numpy
 - scipy
+
+## Math
+The BLINK vectors are triplets of real numbers which represent a value at a specified 2d coordinate.
+Vector addition is accomplished by simply appending vectors.
+Vector multiplication is defined as:
+    X<sub>ij</sub>Y<sub>lm</sub> = (K(j,l)XY)<sub>im</sub>
+where K is a kernel function describing the similarity of j and l.
+
+For K(x,y) = {1 if x==y else 0} where x,y are natural numbers, 
+BLINK vector multiplication behaves like matrix multiplication 
+where coordinates act as rows and columns.
 
 
 ## Contributing

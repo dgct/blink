@@ -134,16 +134,6 @@ class vector:
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
-            if not (
-                (self.x_tolerance == other.x_tolerance)
-                and (self.y_tolerance == other.y_tolerance)
-                and (self.x_transform == other.x_transform)
-                and (self.y_transform == other.y_transform)
-            ):
-                raise ValueError(
-                    "tolerances and transforms must be equal between vectors"
-                )
-
             result = self.__class__(
                 np.concatenate([self.x[0], other.x[0]]),
                 np.concatenate([self.y[0], other.y[0]]),
@@ -209,17 +199,14 @@ class vector:
         self._operate(other, lambda i, o: i**o)
         return self
 
-    def __matmul__(self, other):
+    def __matmul__(self, other, link=None):
         if not isinstance(other, self.__class__):
             raise NotImplementedError(
                 "vector multiplication only defined between blink vectors"
             )
-        if self.y_tolerance != other.x_tolerance:
-            raise ValueError(
-                "x tolerance of right vector must equal y tolerance of left vector"
-            )
 
-        link = self._link(other)
+        if link is None:
+            link = self._link(other)
         y_bins = np.unique(link[0])
 
         left = sp.csr_matrix(
@@ -290,30 +277,14 @@ class vector:
         return result
 
     def norm(self):
-        result = self.copy()
-        result.x = result.x[[0]]
-        temp = result.T
+        link = self._link(self.T)
+        same = self.x[0, link[0]] == self.T.y[0, link[1]]
+        link = link[:, same]
 
-        link = temp._link(result)
-        result.x = self.x
+        norm_ = self.__matmul__(self.T, link) ** -0.5
+        norm_.y_tolerance = 0
 
-        same = temp.y[0, link[0]] == result.x[0, link[1]]
-        mask = link[1, 1:] != link[1, :-1]
-        mask = np.append(True, mask)
-        (edge,) = np.nonzero(mask)
-
-        result *= (
-            np.add.reduceat(
-                same
-                * temp._blur(result, link)
-                * temp.data[link[0]]
-                * result.data[link[1]],
-                edge,
-            )
-            ** -0.5
-        )
-
-        return result
+        return norm_ @ self
 
     def score(self, other, norm=False):
         if norm:
