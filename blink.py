@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
 from scipy.stats import rankdata
-import copy
 
 
 class vector:
@@ -12,7 +11,15 @@ class vector:
         data=None,
         x_tolerance=0.0,
         y_tolerance=0.0,
+        shape=None,
     ):
+
+        # default to rows if x is empty and y is list of numpy arrays
+        if (x.size == 0) and isinstance(y, list):
+            x = np.concatenate([[i] * len(yy) for i, yy in enumerate(y)])
+            y = np.concatenate(y)
+            if isinstance(data, list):
+                data = np.concatenate(data)
 
         x = np.array(x, copy=False, ndmin=2)
         y = np.array(y, copy=False, ndmin=2)
@@ -39,6 +46,12 @@ class vector:
         self.x = x.astype(x.dtype.str[:2] + "4")[:, sort_idx]
         self.y = y.astype(y.dtype.str[:2] + "4")[:, sort_idx]
         self.data = data[sort_idx]
+
+        if shape is None:
+            xmax = self.x[0].max() + (self.x[0].dtype.kind in "iu")
+            ymax = self.y[0].max() + (self.y[0].dtype.kind in "iu")
+            shape = (xmax, ymax)
+        self.shape = shape
 
         self._squeeze()
         self._prune()
@@ -130,11 +143,15 @@ class vector:
     def __add__(self, other):
         if isinstance(other, self.__class__):
             result = self.__class__(
-                np.concatenate([self.x, other.x]),
-                np.concatenate([self.y, other.y]),
+                np.concatenate([self.x, other.x], axis=1),
+                np.concatenate([self.y, other.y], axis=1),
                 np.concatenate([self.data, other.data]),
                 self.x_tolerance,
                 self.y_tolerance,
+                (
+                    max(self.shape[0], other.shape[0]),
+                    max(self.shape[1], other.shape[1]),
+                ),
             )
 
             return result
@@ -205,25 +222,26 @@ class vector:
         left = sp.csr_matrix(
             (
                 self.data[y_bins],
-                (self.x[0, y_bins].view(dtype=np.uint32), y_bins),
+                (y_bins, y_bins),
             ),
         )
 
         right = sp.csr_matrix(
             (
                 self._blur(other, link) * other.data[link[1]],
-                (link[0], other.y[0, link[1]].view(dtype=np.uint32)),
+                (link[0], link[1]),
             ),
         )
 
         result = left.dot(right).tocoo()
 
         result = self.__class__(
-            result.row.view(dtype=self.x.dtype),
-            result.col.view(dtype=other.y.dtype),
+            self.x[:, result.row],
+            other.y[:, result.col],
             result.data,
             self.x_tolerance,
             other.y_tolerance,
+            (self.shape[0], other.shape[1]),
         )
 
         return result
@@ -233,7 +251,8 @@ class vector:
     #################
 
     def copy(self):
-        return copy.copy(self)
+        result = self.__class__(**self.__dict__.copy())
+        return result
 
     def transpose(self):
         result = self.__class__(
@@ -242,6 +261,7 @@ class vector:
             self.data,
             self.y_tolerance,
             self.x_tolerance,
+            (self.shape[1], self.shape[0]),
         )
 
         return result
@@ -284,16 +304,13 @@ class vector:
         return sp.coo_matrix(
             (
                 self.data,
-                (self.x[0].view(np.uint32), self.y[0].view(np.uint32)),
-            )
+                (self.x[0], self.y[0]),
+            ),
+            shape=self.shape,
         )
 
     def toarray(self):
-        result = self.copy()
-        result.x = rankdata(result.x[0], "dense").astype(np.uint32)[None, :] - 1
-        result.y = rankdata(result.y[0], "dense").astype(np.uint32)[None, :] - 1
-
-        return result.tocoo().toarray()
+        return self.tocoo().toarray()
 
     def save(self, file):
         np.savez(file, **self.__dict__)
