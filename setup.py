@@ -21,6 +21,6 @@ setup(
     keywords="blurry link vector",
     url="",
     packages=[],
-    long_description=read("README"),
+    long_description=read("README.md"),
     classifiers=[],
 )
