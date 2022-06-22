@@ -28,10 +28,8 @@ class vector:
         data = np.asarray(data)
 
         for name, var in zip(["x", "y"], [x, y, data]):
-            if var.ndim != 2 or var.dtype.kind not in "iuf":
-                raise ValueError(
-                    "{} is mishapen or not castable to 32 bit numeric".format(name)
-                )
+            if var.ndim != 2:
+                raise ValueError("{} is mishapen".format(name))
 
         if data.ndim != 1 or data.dtype.kind not in "biufc":
             raise ValueError("data is mishapen or non-numeric")
@@ -43,8 +41,8 @@ class vector:
         self.y_tolerance = y_tolerance
 
         sort_idx = np.argsort(y[0], kind="merge")
-        self.x = x.astype(x.dtype.str[:2] + "4")[:, sort_idx]
-        self.y = y.astype(y.dtype.str[:2] + "4")[:, sort_idx]
+        self.x = x[:, sort_idx]
+        self.y = y[:, sort_idx]
         self.data = data[sort_idx]
 
         if shape is None:
