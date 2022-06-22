@@ -26,7 +26,7 @@ class vector:
             data = np.ones_like(x)
         data = np.asarray(data)
 
-        for name, var in zip(["x", "y"], [x, y, data]):
+        for name, var in zip(["x", "y"], [x, y]):
             if var.ndim != 2:
                 raise ValueError("{} is mishapen".format(name))
 
@@ -115,8 +115,8 @@ class vector:
 
     def _operate(self, other, func):
         if (
-            not isinstance(other, (float, int, complex))
-            and other.dtype.kind not in "iufc"
+            not isinstance(other, (bool, float, int, complex))
+            and other.dtype.kind not in "biufc"
         ):
             raise ValueError("{} is not a scalar or array of shape data".format(other))
         self.data = func(self.data, other)
@@ -212,6 +212,11 @@ class vector:
                 "vector multiplication only defined between blink vectors"
             )
 
+        if self.y_tolerance != self.x_tolerance:
+            raise ValueError(
+                "y tolerance of left vector must equal x tolerance of right vector"
+            )
+
         if link is None:
             link = self._link(other)
         y_bins = np.unique(link[0])
@@ -276,6 +281,7 @@ class vector:
             self.data[same],
             self.x_tolerance,
             self.y_tolerance,
+            self.shape,
         )
 
         return result
@@ -287,6 +293,7 @@ class vector:
 
         norm_ = self.__matmul__(self.T, link) ** -0.5
         norm_.y_tolerance = 0
+        self.x_tolerance = 0
 
         return norm_ @ self
 
