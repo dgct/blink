@@ -212,7 +212,7 @@ class vector:
                 "vector multiplication only defined between blink vectors"
             )
 
-        if self.y_tolerance != self.x_tolerance:
+        if self.y_tolerance != other.x_tolerance:
             raise ValueError(
                 "y tolerance of left vector must equal x tolerance of right vector"
             )
