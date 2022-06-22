@@ -10,7 +10,7 @@ def read(fname):
 
 
 setup(
-    name="BLINK",
+    name="blink",
     version="3.1.4",
     author="Daniel Treen",
     author_email="d@tree.casa",
