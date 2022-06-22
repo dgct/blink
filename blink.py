@@ -104,7 +104,7 @@ class vector:
         )
 
     def _prune(self):
-        mask = self.data != 0
+        mask = ~np.isclose(self.data, 0)
         self.x = self.x[:, mask]
         self.y = self.y[:, mask]
         self.data = self.data[mask]
@@ -286,21 +286,23 @@ class vector:
 
         return result
 
-    def norm(self):
+    def norm(self, count=False):
         link = self._link(self.T)
         same = self.x[0, link[0]] == self.T.y[0, link[1]]
         link = link[:, same]
 
         norm_ = self.__matmul__(self.T, link) ** -0.5
+        if count:
+            norm_ *= (self**0).__matmul__((self**0).T, link).data ** 0.5
+
         norm_.y_tolerance = 0
         self.x_tolerance = 0
 
         return norm_ @ self
 
-    def score(self, other, norm=False):
-        if norm:
-            self = self.norm()
-            other = other.norm()
+    def score(self, other, match=False):
+        self = self.norm(count=match)
+        other = other.norm(count=match)
 
         return self @ other.T
 
