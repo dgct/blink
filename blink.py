@@ -286,23 +286,29 @@ class vector:
 
         return result
 
-    def norm(self, count=False):
+    def norm(self):
         link = self._link(self.T)
         same = self.x[0, link[0]] == self.T.y[0, link[1]]
         link = link[:, same]
 
         norm_ = self.__matmul__(self.T, link) ** -0.5
-        if count:
-            norm_ *= (self**0).__matmul__((self**0).T, link).data ** 0.5
+
+        # set vector norm to sqrt sum if vector is boolean
+        # enabling vector multiplication to count "blurry" matches
+        if self.data.dtype.kind == "b":
+            same = self.y[0, link[0]] == self.T.x[0, link[1]]
+            link = link[:, same]
+
+            norm_ *= self.__matmul__(self.T, link).data ** 0.5
 
         norm_.y_tolerance = 0
         self.x_tolerance = 0
 
         return norm_ @ self
 
-    def score(self, other, match=False):
-        self = self.norm(count=match)
-        other = other.norm(count=match)
+    def score(self, other):
+        self = self.norm()
+        other = other.norm()
 
         return self @ other.T
 
