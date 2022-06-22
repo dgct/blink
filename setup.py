@@ -18,9 +18,10 @@ setup(
         "Blur and Link (BLINK) is a Python library that acts as an abstraction of sparse matrices to enable fast and efficient cosine scoring across noisy dimensions."
     ),
     license="BSD",
-    keywords="blurry link vector",
+    keywords="blur link vector",
     url="",
-    packages=[],
+    packages=["blink"],
+    install_requires=["numpy", "scipy"],
     long_description=read("README.md"),
     classifiers=[],
 )
