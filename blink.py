@@ -23,7 +23,7 @@ class vector:
         x = np.array(x, copy=False, ndmin=2)
         y = np.array(y, copy=False, ndmin=2)
         if data is None:
-            data = np.ones_like(x)
+            data = np.ones_like(x[0], dtype=bool)
         data = np.asarray(data)
 
         for name, var in zip(["x", "y"], [x, y]):
@@ -66,6 +66,19 @@ class vector:
         return 1 - (diff / self.y_tolerance) ** 2
 
     def _link(self, other):
+        def _multi_arange(a):
+            if a.shape[1] == 3:
+                steps = a[:, 2]
+            else:
+                steps = np.ones(a.shape[0], dtype=int)
+
+            lens = ((a[:, 1] - a[:, 0]) + steps - np.sign(steps)) // steps
+            b = np.repeat(steps, lens)
+            ends = (lens - 1) * steps + a[:, 0]
+            b[0] = a[0, 0]
+            b[lens[:-1].cumsum()] = a[1:, 0] - ends[:-1]
+            return b.cumsum()
+
         overlap = np.array(
             [
                 np.searchsorted(self.y[0], other.x.ravel() - self.y_tolerance, "left"),
@@ -333,15 +346,17 @@ def load(file):
     return result
 
 
-def _multi_arange(a):
-    if a.shape[1] == 3:
-        steps = a[:, 2]
-    else:
-        steps = np.ones(a.shape[0], dtype=int)
+def sum(vectors):
+    result = vector(
+        np.concatenate([v.x for v in vectors], axis=1),
+        np.concatenate([v.y for v in vectors], axis=1),
+        np.concatenate([v.data for v in vectors]),
+        np.max([v.x_tolerance for v in vectors]),
+        np.max([v.y_tolerance for v in vectors]),
+        (
+            np.max([v.shape[0] for v in vectors]),
+            np.max([v.shape[1] for v in vectors]),
+        ),
+    )
 
-    lens = ((a[:, 1] - a[:, 0]) + steps - np.sign(steps)) // steps
-    b = np.repeat(steps, lens)
-    ends = (lens - 1) * steps + a[:, 0]
-    b[0] = a[0, 0]
-    b[lens[:-1].cumsum()] = a[1:, 0] - ends[:-1]
-    return b.cumsum()
+    return result
