@@ -106,7 +106,7 @@ class vector:
     def _squeeze(self):
         same_x = self.x[0, 1:] != self.x[0, :-1]
         same_y = self.y[0, 1:] != self.y[0, :-1]
-        same = same_x & same_y
+        same = same_x | same_y
         same = np.append(True, same)
         (same_edge,) = np.nonzero(same)
 
