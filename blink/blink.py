@@ -170,8 +170,15 @@ class vector:
         result._operate(other, lambda i, o: i + o)
         return result
 
+    def __sub__(self, other):
+        return self + (-1 * other)
+
     def __iadd__(self, other):
         self._operate(other, lambda i, o: i + o)
+        return self
+
+    def __isub__(self, other):
+        self._operate(other, lambda i, o: i - o)
         return self
 
     def __mul__(self, other):
