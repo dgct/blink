@@ -63,7 +63,7 @@ class vector:
         if np.isclose(diff, 0).all():
             return 1
 
-        return 1 - (diff / self.y_tolerance) ** 2
+        return 1  # - (diff / self.y_tolerance) ** 2
 
     def _link(self, other):
         def _multi_arange(a):
@@ -284,6 +284,18 @@ class vector:
             self.y_tolerance,
             self.x_tolerance,
             (self.shape[1], self.shape[0]),
+        )
+
+        return result
+
+    def conj(self):
+        result = self.__class__(
+            self.x,
+            self.y,
+            self.data.conj(),
+            self.x_tolerance,
+            self.y_tolerance,
+            self.shape,
         )
 
         return result
