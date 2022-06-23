@@ -39,7 +39,8 @@ class vector:
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
 
-        sort_idx = np.argsort(y[0], kind="merge")
+        sort_idx = np.argsort(x[0])
+        sort_idx = sort_idx[np.argsort(y[0, sort_idx], kind="merge")]
         self.x = x[:, sort_idx]
         self.y = y[:, sort_idx]
         self.data = data[sort_idx]
