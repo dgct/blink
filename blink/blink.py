@@ -381,7 +381,7 @@ class vector:
         self = self.norm()
         other = other.norm()
 
-        return self @ other.T
+        return self @ other.conj().T
 
     def tocoo(self):
         return sp.coo_matrix(
