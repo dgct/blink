@@ -358,7 +358,7 @@ class vector:
         return result
 
     def norm(self):
-        link = self._link(self.T)
+        link = self._link(self.conj().T)
         same = self.x[0, link[0]] == self.T.y[0, link[1]]
         link = link[:, same]
 
