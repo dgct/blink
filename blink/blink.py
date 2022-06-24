@@ -63,7 +63,7 @@ class vector:
         if np.isclose(diff, 0).all():
             return 1
 
-        return 1 - (diff / self.y_tolerance) ** 2
+        return (1 - (diff / self.y_tolerance) ** 2) ** 3
 
     def _link(self, other):
         def _multi_arange(a):
@@ -111,10 +111,7 @@ class vector:
 
         self.x = self.x[:, same]
         self.y = self.y[:, same]
-        self.data = np.add.reduceat(
-            self.data,
-            same_edge,
-        )
+        self.data = np.add.reduceat(self.data, same_edge)
 
     def _prune(self):
         mask = ~np.isclose(self.data, 0)
