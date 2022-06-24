@@ -362,7 +362,7 @@ class vector:
         same = self.x[0, link[0]] == self.T.y[0, link[1]]
         link = link[:, same]
 
-        norm_ = self.__matmul__(self.T, link) ** -0.5
+        norm_ = self.__matmul__(self.conj().T, link) ** -0.5
 
         # set vector norm to sqrt sum if vector is boolean
         # enabling vector multiplication to count "blurry" matches
@@ -370,7 +370,7 @@ class vector:
             same = self.y[0, link[0]] == self.T.x[0, link[1]]
             link = link[:, same]
 
-            norm_ *= self.__matmul__(self.T, link).data ** 0.5
+            norm_ *= self.__matmul__(self.conj().T, link).data ** 0.5
 
         norm_.y_tolerance = 0
         self.x_tolerance = 0
