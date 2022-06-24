@@ -10,7 +10,6 @@ class vector:
         data=None,
         x_tolerance=0.0,
         y_tolerance=0.0,
-        blur="parabolic",
         shape=None,
     ):
 
@@ -40,8 +39,7 @@ class vector:
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
 
-        sort_idx = np.argsort(x[0])
-        sort_idx = sort_idx[np.argsort(y[0, sort_idx], kind="merge")]
+        sort_idx = np.argsort(y[0])
         self.x = x[:, sort_idx]
         self.y = y[:, sort_idx]
         self.data = data[sort_idx]
@@ -276,6 +274,48 @@ class vector:
 
     def copy(self):
         result = self.__class__(**self.__dict__.copy())
+        return result
+
+    def xslice(self, *args):
+        if len(args) == 1:
+            mask = self.x[0] == args
+        elif len(args) == 2:
+            mask = np.ones_like(self.x[0], dtype=bool)
+            if args[0] is not None:
+                mask &= args[0] <= self.x[0]
+            if args[1] is not None:
+                mask &= self.x[0] <= args[1]
+        else:
+            raise ValueError("args must be on length 1 or 2")
+
+        result = self.__class__(
+            self.x[:, mask],
+            self.y[:, mask],
+            self.data[mask],
+            self.x_tolerance,
+            self.y_tolerance,
+        )
+        return result
+
+    def yslice(self, *args):
+        if len(args) == 1:
+            mask = self.y[0] == args
+        elif len(args) == 2:
+            mask = np.ones_like(self.y[0], dtype=bool)
+            if args[0] is not None:
+                mask &= args[0] <= self.y[0]
+            if args[1] is not None:
+                mask &= self.y[0] <= args[1]
+        else:
+            raise ValueError("args must be on length 1 or 2")
+
+        result = self.__class__(
+            self.x[:, mask],
+            self.y[:, mask],
+            self.data[mask],
+            self.x_tolerance,
+            self.y_tolerance,
+        )
         return result
 
     def transpose(self):
