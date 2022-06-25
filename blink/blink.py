@@ -39,7 +39,7 @@ class vector:
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
 
-        sort_idx = np.argsort(y[0])
+        sort_idx = np.argsort(y[0] + 1j * x[0])
         self.x = x[:, sort_idx]
         self.y = y[:, sort_idx]
         self.data = data[sort_idx]
