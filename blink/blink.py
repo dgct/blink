@@ -281,7 +281,7 @@ class vector:
             if args[0] is not None:
                 mask &= args[0] <= self.x[0]
             if args[1] is not None:
-                mask &= self.x[0] <= args[1]
+                mask &= self.x[0] < args[1]
         else:
             raise ValueError("args must be on length 1 or 2")
 
@@ -302,7 +302,7 @@ class vector:
             if args[0] is not None:
                 mask &= args[0] <= self.y[0]
             if args[1] is not None:
-                mask &= self.y[0] <= args[1]
+                mask &= self.y[0] < args[1]
         else:
             raise ValueError("args must be on length 1 or 2")
 
@@ -358,11 +358,11 @@ class vector:
         return result
 
     def norm(self):
-        link = self._link(self.conj().T)
+        link = self._link(self.T)
         same = self.x[0, link[0]] == self.T.y[0, link[1]]
         link = link[:, same]
 
-        norm_ = self.__matmul__(self.conj().T, link) ** -0.5
+        norm_ = self.__matmul__(self.T, link) ** -0.5
 
         # set vector norm to sqrt sum if vector is boolean
         # enabling vector multiplication to count "blurry" matches
@@ -370,7 +370,7 @@ class vector:
             same = self.y[0, link[0]] == self.T.x[0, link[1]]
             link = link[:, same]
 
-            norm_ *= self.__matmul__(self.conj().T, link).data ** 0.5
+            norm_ *= self.__matmul__(self.T, link).data ** 0.5
 
         norm_.y_tolerance = 0
         self.x_tolerance = 0
@@ -381,7 +381,7 @@ class vector:
         self = self.norm()
         other = other.norm()
 
-        return self @ other.conj().T
+        return self @ other.T
 
     def tocoo(self):
         return sp.coo_matrix(
