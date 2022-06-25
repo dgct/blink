@@ -357,25 +357,35 @@ class vector:
 
         return result
 
-    def norm(self):
-        link = self._link(self.T)
-        same = self.x[0, link[0]] == self.T.y[0, link[1]]
-        link = link[:, same]
-
-        norm_ = self.__matmul__(self.T, link) ** -0.5
-
-        # set vector norm to sqrt sum if vector is boolean
-        # enabling vector multiplication to count "blurry" matches
-        if self.data.dtype.kind == "b":
-            same = self.y[0, link[0]] == self.T.x[0, link[1]]
+    def norm(self, chunk_size=1000):
+        def _norm(self):
+            link = self._link(self.T)
+            same = self.x[0, link[0]] == self.T.y[0, link[1]]
             link = link[:, same]
 
-            norm_ *= self.__matmul__(self.T, link).data ** 0.5
+            norm_ = self.__matmul__(self.T, link) ** -0.5
 
-        norm_.y_tolerance = 0
-        self.x_tolerance = 0
+            # set vector norm to sqrt sum if vector is boolean
+            # enabling vector multiplication to count "blurry" matches
+            if self.data.dtype.kind == "b":
+                same = self.y[0, link[0]] == self.T.x[0, link[1]]
+                link = link[:, same]
 
-        return norm_ @ self
+                norm_ *= self.__matmul__(self.T, link).data ** 0.5
+
+            norm_.y_tolerance = 0
+            self.x_tolerance = 0
+
+            return norm_ @ self
+
+        result = sum(
+            [
+                _norm(self.xslice(i, i + chunk_size))
+                for i in np.arange(0, self.shape[0], chunk_size)
+            ]
+        )
+
+        return result
 
     def score(self, other, norm=False, chunk_size=1000):
         if norm:
@@ -384,8 +394,8 @@ class vector:
 
         result = sum(
             [
-                self @ other.xslice(i, i + chunk_size).T
-                for i in range(0, other.shape[0], chunk_size)
+                self.__matmul__(other.xslice(i, i + chunk_size).T)
+                for i in np.arange(0, other.shape[0], chunk_size)
             ]
         )
 
