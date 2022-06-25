@@ -103,15 +103,15 @@ class vector:
         return link
 
     def _squeeze(self):
-        same_x = self.x[0, 1:] != self.x[0, :-1]
-        same_y = self.y[0, 1:] != self.y[0, :-1]
-        same = same_x | same_y
-        same = np.append(True, same)
-        (same_edge,) = np.nonzero(same)
+        diff_x = self.x[0, 1:] != self.x[0, :-1]
+        diff_y = self.y[0, 1:] != self.y[0, :-1]
+        diff = diff_x | diff_y
+        diff = np.append(True, diff)
+        (diff_edge,) = np.nonzero(diff)
 
-        self.x = self.x[:, same]
-        self.y = self.y[:, same]
-        self.data = np.add.reduceat(self.data, same_edge)
+        self.x = self.x[:, diff]
+        self.y = self.y[:, diff]
+        self.data = np.add.reduceat(self.data, diff_edge)
 
     def _prune(self):
         mask = ~np.isclose(self.data, 0)
