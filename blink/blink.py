@@ -377,11 +377,19 @@ class vector:
 
         return norm_ @ self
 
-    def score(self, other):
-        self = self.norm()
-        other = other.norm()
+    def score(self, other, norm=False, chunk_size=1000):
+        if norm:
+            self = self.norm()
+            other = other.norm()
 
-        return self @ other.T
+        result = sum(
+            [
+                self @ other.xslice(i, i + chunk_size).T
+                for i in range(0, other.shape[0], chunk_size)
+            ]
+        )
+
+        return result
 
     def tocoo(self):
         return sp.coo_matrix(
