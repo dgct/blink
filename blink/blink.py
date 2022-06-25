@@ -153,8 +153,8 @@ class vector:
                 np.concatenate([self.x, other.x], axis=1),
                 np.concatenate([self.y, other.y], axis=1),
                 np.concatenate([self.data, other.data]),
-                self.x_tolerance,
-                self.y_tolerance,
+                max(self.x_tolerance, other.x_tolerance),
+                max(self.y_tolerance, other.y_tolerance),
                 (
                     max(self.shape[0], other.shape[0]),
                     max(self.shape[1], other.shape[1]),
