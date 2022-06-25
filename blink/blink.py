@@ -111,7 +111,7 @@ class vector:
 
         self.x = self.x[:, diff]
         self.y = self.y[:, diff]
-        self.data = np.add.reduceat(self.data, diff_edge)
+        self.data = np.add.reduceat(self.data, diff_edge, dtype=self.data.dtype)
 
     def _prune(self):
         mask = ~np.isclose(self.data, 0)
