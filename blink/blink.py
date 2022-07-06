@@ -11,6 +11,7 @@ class vector:
         x_tolerance=0.0,
         y_tolerance=0.0,
         shape=None,
+        blur=True,
     ):
 
         # default to rows if x is empty and y is list of numpy arrays
@@ -38,6 +39,7 @@ class vector:
 
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
+        self.blur = blur
 
         sort_idx = np.argsort(y[0] + 1j * x[0])
         self.x = x[:, sort_idx]
@@ -159,6 +161,7 @@ class vector:
                     max(self.shape[0], other.shape[0]),
                     max(self.shape[1], other.shape[1]),
                 ),
+                self.blur and other.blur,
             )
 
             return result
@@ -245,9 +248,14 @@ class vector:
             ),
         )
 
+        if self.blur:
+            blur = self._blur(other, link)
+        else:
+            blur = 1
+
         right = sp.csr_matrix(
             (
-                self._blur(other, link) * other.data[link[1]],
+                blur * other.data[link[1]],
                 (link[0], link[1]),
             ),
         )
@@ -433,6 +441,7 @@ def sum(vectors):
             np.max([v.shape[0] for v in vectors]),
             np.max([v.shape[1] for v in vectors]),
         ),
+        np.array([v.blur for v in vectors]).all(),
     )
 
     return result
