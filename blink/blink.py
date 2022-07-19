@@ -323,6 +323,33 @@ class vector:
         )
         return result
 
+    def center(self):
+        _, inv, count = np.unique(
+            self.x[0],
+            return_inverse=True,
+            return_counts=True,
+        )
+
+        means = sp.coo_matrix(
+            (
+                self.data / count[inv],
+                (np.zeros_like(self.data, dtype=int), self.x[0]),
+            )
+        )
+        means.sum_duplicates()
+        means = means.data[inv]
+
+        result = self.__class__(
+            self.x,
+            self.y,
+            self.data - means,
+            self.x_tolerance,
+            self.y_tolerance,
+            self.shape,
+        )
+
+        return result
+
     def transpose(self):
         result = self.__class__(
             self.y,
@@ -365,8 +392,8 @@ class vector:
 
         return result
 
-    def norm(self, chunk_size=1000):
-        def _norm(self):
+    def norm(self, kind="l1", chunk_size=1000):
+        def l1norm(self):
             link = self._link(self.T)
             same = self.x[0, link[0]] == self.T.y[0, link[1]]
             link = link[:, same]
@@ -385,6 +412,41 @@ class vector:
             self.x_tolerance = 0
 
             return norm_ @ self
+
+        def l0norm(self):
+            _, inv = np.unique(
+                self.x[0],
+                return_inverse=True,
+            )
+
+            sums = sp.coo_matrix(
+                (
+                    self.data,
+                    (np.zeros_like(self.data, dtype=int), self.x[0]),
+                )
+            )
+            sums.sum_duplicates()
+            sums = sums.data[inv]
+
+            result = self.__class__(
+                self.x,
+                self.y,
+                self.data / sums,
+                self.x_tolerance,
+                self.y_tolerance,
+                self.shape,
+            )
+
+            return result
+
+        if kind == "l1":
+            _norm = l1norm
+        elif kind == "l0":
+            _norm = l0norm
+        else:
+            raise NotImplementedError(
+                "{} not implemented for blink vectors".format(kind)
+            )
 
         result = sum(
             [
