@@ -47,8 +47,11 @@ class vector:
         self.data = data[sort_idx]
 
         if shape is None:
-            xmax = self.x[0].max() + (self.x[0].dtype.kind in "iu")
-            ymax = self.y[0].max() + (self.y[0].dtype.kind in "iu")
+            xmax, ymax = 0, 0
+            if len(self.x[0]) > 0:
+                xmax += self.x[0].max() + (self.x[0].dtype.kind in "iu")
+            if len(self.y[0]) > 0:
+                ymax += self.y[0].max() + (self.y[0].dtype.kind in "iu")
             shape = (xmax, ymax)
         self.shape = shape
 
@@ -71,6 +74,8 @@ class vector:
         def _multi_arange(a):
             if a.shape[1] == 3:
                 steps = a[:, 2]
+            if a.size == 0:
+                return np.array([], dtype=int)
             else:
                 steps = np.ones(a.shape[0], dtype=int)
 
@@ -108,7 +113,8 @@ class vector:
         diff_x = self.x[0, 1:] != self.x[0, :-1]
         diff_y = self.y[0, 1:] != self.y[0, :-1]
         diff = diff_x | diff_y
-        diff = np.append(True, diff)
+        if len(diff) > 0:
+            diff = np.append(True, diff)
         (diff_edge,) = np.nonzero(diff)
 
         self.x = self.x[:, diff]
@@ -151,18 +157,7 @@ class vector:
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
-            result = self.__class__(
-                np.concatenate([self.x, other.x], axis=1),
-                np.concatenate([self.y, other.y], axis=1),
-                np.concatenate([self.data, other.data]),
-                max(self.x_tolerance, other.x_tolerance),
-                max(self.y_tolerance, other.y_tolerance),
-                (
-                    max(self.shape[0], other.shape[0]),
-                    max(self.shape[1], other.shape[1]),
-                ),
-                self.blur and other.blur,
-            )
+            result = sum([self, other])
 
             return result
 
@@ -241,26 +236,29 @@ class vector:
             link = self._link(other)
         y_bins = np.unique(link[0])
 
-        left = sp.csr_matrix(
-            (
-                self.data[y_bins],
-                (y_bins, y_bins),
-            ),
-        )
-
-        if self.blur:
-            blur = self._blur(other, link)
+        if len(y_bins) == 0:
+            result = sp.coo_matrix((0, 0))
         else:
-            blur = 1
+            left = sp.csr_matrix(
+                (
+                    self.data[y_bins],
+                    (y_bins, y_bins),
+                ),
+            )
 
-        right = sp.csr_matrix(
-            (
-                blur * other.data[link[1]],
-                (link[0], link[1]),
-            ),
-        )
+            if self.blur:
+                blur = self._blur(other, link)
+            else:
+                blur = 1
 
-        result = left.dot(right).tocoo()
+            right = sp.csr_matrix(
+                (
+                    blur * other.data[link[1]],
+                    (link[0], link[1]),
+                ),
+            )
+
+            result = left.dot(right).tocoo()
 
         result = self.__class__(
             self.x[:, result.row],
@@ -324,8 +322,9 @@ class vector:
         return result
 
     def center(self):
-        _, inv, count = np.unique(
+        _, ind, inv, count = np.unique(
             self.x[0],
+            return_index=True,
             return_inverse=True,
             return_counts=True,
         )
@@ -333,7 +332,7 @@ class vector:
         means = sp.coo_matrix(
             (
                 self.data / count[inv],
-                (np.zeros_like(self.data, dtype=int), self.x[0]),
+                (np.zeros_like(self.data, dtype=int), ind[inv]),
             )
         )
         means.sum_duplicates()
@@ -414,15 +413,16 @@ class vector:
             return norm_ @ self
 
         def l0norm(self):
-            _, inv = np.unique(
+            _, ind, inv = np.unique(
                 self.x[0],
+                return_index=True,
                 return_inverse=True,
             )
 
             sums = sp.coo_matrix(
                 (
                     self.data,
-                    (np.zeros_like(self.data, dtype=int), self.x[0]),
+                    (np.zeros_like(self.data, dtype=int), ind[inv]),
                 )
             )
             sums.sum_duplicates()
@@ -493,17 +493,20 @@ def load(file):
 
 
 def sum(vectors):
-    result = vector(
-        np.concatenate([v.x for v in vectors], axis=1),
-        np.concatenate([v.y for v in vectors], axis=1),
-        np.concatenate([v.data for v in vectors]),
-        np.max([v.x_tolerance for v in vectors]),
-        np.max([v.y_tolerance for v in vectors]),
-        (
-            np.max([v.shape[0] for v in vectors]),
-            np.max([v.shape[1] for v in vectors]),
-        ),
-        np.array([v.blur for v in vectors]).all(),
-    )
+    if len(vectors) == 0:
+        result = vector()
+    else:
+        result = vector(
+            np.concatenate([v.x for v in vectors], axis=1),
+            np.concatenate([v.y for v in vectors], axis=1),
+            np.concatenate([v.data for v in vectors]),
+            np.max([v.x_tolerance for v in vectors]),
+            np.max([v.y_tolerance for v in vectors]),
+            (
+                np.max([v.shape[0] for v in vectors]),
+                np.max([v.shape[1] for v in vectors]),
+            ),
+            np.array([v.blur for v in vectors]).all(),
+        )
 
     return result
