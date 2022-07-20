@@ -391,8 +391,8 @@ class vector:
 
         return result
 
-    def norm(self, kind="l1", chunk_size=1000):
-        def l1norm(self):
+    def norm(self, kind="l2", chunk_size=1000):
+        def l2norm(self):
             link = self._link(self.T)
             same = self.x[0, link[0]] == self.T.y[0, link[1]]
             link = link[:, same]
@@ -412,7 +412,7 @@ class vector:
 
             return norm_ @ self
 
-        def l0norm(self):
+        def l1norm(self):
             _, ind, inv = np.unique(
                 self.x[0],
                 return_index=True,
@@ -439,13 +439,17 @@ class vector:
 
             return result
 
-        if kind == "l1":
+        if kind == "l2":
+            _norm = l2norm
+        elif kind == "l1":
             _norm = l1norm
         elif kind == "l0":
-            _norm = l0norm
+            self = self.copy()
+            self.data = self.data.astype(bool)
+            _norm = l2norm
         else:
             raise NotImplementedError(
-                "{} not implemented for blink vectors".format(kind)
+                "{}norm not implemented for blink vectors".format(kind)
             )
 
         result = sum(
