@@ -55,8 +55,9 @@ class vector:
             shape = (xmax, ymax)
         self.shape = shape
 
-        self._squeeze()
-        self._prune()
+        if data.size > 0:
+            self._squeeze()
+            self._prune()
 
     #################
     # Blink Methods
@@ -113,8 +114,7 @@ class vector:
         diff_x = self.x[0, 1:] != self.x[0, :-1]
         diff_y = self.y[0, 1:] != self.y[0, :-1]
         diff = diff_x | diff_y
-        if len(diff) > 0:
-            diff = np.append(True, diff)
+        diff = np.append(True, diff)
         (diff_edge,) = np.nonzero(diff)
 
         self.x = self.x[:, diff]
@@ -461,10 +461,10 @@ class vector:
 
         return result
 
-    def score(self, other, norm=False, chunk_size=1000):
-        if norm:
-            self = self.norm()
-            other = other.norm()
+    def score(self, other, norm="l2", chunk_size=1000):
+        if norm is not None:
+            self = self.norm(norm)
+            other = other.norm(norm)
 
         result = sum(
             [
