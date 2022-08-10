@@ -30,8 +30,8 @@ class vector:
             if var.ndim != 2:
                 raise ValueError("{} is mishapen".format(name))
 
-        if data.ndim != 1 or data.dtype.kind not in "biufc":
-            raise ValueError("data is mishapen or non-numeric")
+        if data.ndim != 1 or data.dtype.kind not in "biuf":
+            raise ValueError("data is mishapen, non-numeric, or complex")
 
         if not (len(x[0]) == len(y[0]) == len(data)):
             raise ValueError("x, y, and data array must all be same length")
@@ -262,7 +262,7 @@ class vector:
         result = self.__class__(
             self.x[:, result.row],
             other.y[:, result.col],
-            result.data,
+            result.data.real,
             self.x_tolerance,
             other.y_tolerance,
             (self.shape[0], other.shape[1]),
@@ -360,18 +360,6 @@ class vector:
 
         return result
 
-    def conj(self):
-        result = self.__class__(
-            self.x,
-            self.y,
-            self.data.conj(),
-            self.x_tolerance,
-            self.y_tolerance,
-            self.shape,
-        )
-
-        return result
-
     @property
     def T(self):
         return self.transpose()
@@ -396,7 +384,7 @@ class vector:
             same = self.x[0, link[0]] == self.T.y[0, link[1]]
             link = link[:, same]
 
-            norm_ = self.__matmul__(self.T.conj(), link) ** -0.5
+            norm_ = self.__matmul__(self.T, link) ** -0.5
 
             # set vector norm to sqrt sum if vector is boolean
             # enabling vector multiplication to count "blurry" matches
@@ -404,7 +392,7 @@ class vector:
                 same = self.y[0, link[0]] == self.T.x[0, link[1]]
                 link = link[:, same]
 
-                norm_ *= self.__matmul__(self.T.conj(), link).data ** 0.5
+                norm_ *= self.__matmul__(self.T, link).data ** 0.5
 
             norm_.y_tolerance = 0
             self.x_tolerance = 0
@@ -467,7 +455,7 @@ class vector:
 
         result = sum(
             [
-                self.__matmul__(other.xslice(i, i + chunk_size).T.conj())
+                self.__matmul__(other.xslice(i, i + chunk_size).T)
                 for i in np.arange(0, other.shape[0], chunk_size)
             ]
         )
