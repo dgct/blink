@@ -229,10 +229,12 @@ class vector:
         if len(y_bins) == 0:
             result = sp.coo_matrix((0, 0))
         else:
-            left_blur = 1
+            left_blur = 1 + 0j
             if self.y_tolerance > 0:
-                left_blur *= np.sin(self.y[0, y_bins] / self.y_tolerance)
-                left_blur += 1j * np.cos(self.y[0, y_bins] / self.y_tolerance)
+                left_blur *= np.sin(0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance)
+                left_blur += 1j * np.cos(
+                    0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance
+                )
             left = sp.csr_matrix(
                 (
                     left_blur * self.data[y_bins],
@@ -240,10 +242,14 @@ class vector:
                 ),
             )
 
-            right_blur = 1
+            right_blur = 1 + 0j
             if other.x_tolerance > 0:
-                right_blur *= np.sin(other.x[0, link[1]] / other.x_tolerance)
-                right_blur -= 1j * np.cos(other.x[0, link[1]] / other.x_tolerance)
+                right_blur *= np.sin(
+                    0.5 * np.pi * other.x[0, link[1]] / other.x_tolerance
+                )
+                right_blur -= 1j * np.cos(
+                    0.5 * np.pi * other.x[0, link[1]] / other.x_tolerance
+                )
             right = sp.csr_matrix(
                 (
                     right_blur * other.data[link[1]],
