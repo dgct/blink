@@ -11,7 +11,6 @@ class vector:
         x_tolerance=0.0,
         y_tolerance=0.0,
         shape=None,
-        blur=True,
     ):
 
         # default to rows if x is empty and y is list of numpy arrays
@@ -39,7 +38,6 @@ class vector:
 
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
-        self.blur = blur
 
         sort_idx = np.argsort(y[0] + 1j * x[0])
         self.x = x[:, sort_idx]
@@ -56,20 +54,12 @@ class vector:
         self.shape = shape
 
         if data.size > 0:
-            self._squeeze()
-            self._prune()
+            self.sum_duplicates()
+            self.eliminate_zeros()
 
     #################
     # Blink Methods
     #################
-
-    def _blur(self, other, link):
-        diff = self.y[0, link[0]] - other.x[link[2], link[1]]
-
-        if np.isclose(diff, 0).all():
-            return 1
-
-        return 1 - (diff / self.y_tolerance) ** 2
 
     def _link(self, other):
         def _multi_arange(a):
@@ -110,7 +100,7 @@ class vector:
 
         return link
 
-    def _squeeze(self):
+    def sum_duplicates(self):
         diff_x = self.x[0, 1:] != self.x[0, :-1]
         diff_y = self.y[0, 1:] != self.y[0, :-1]
         diff = diff_x | diff_y
@@ -121,7 +111,7 @@ class vector:
         self.y = self.y[:, diff]
         self.data = np.add.reduceat(self.data, diff_edge, dtype=self.data.dtype)
 
-    def _prune(self):
+    def eliminate_zeros(self):
         mask = ~np.isclose(self.data, 0)
         self.x = self.x[:, mask]
         self.y = self.y[:, mask]
@@ -239,21 +229,24 @@ class vector:
         if len(y_bins) == 0:
             result = sp.coo_matrix((0, 0))
         else:
+            left_blur = 1
+            if self.y_tolerance > 0:
+                left_blur *= np.sin(self.y[0, y_bins] / self.y_tolerance)
+                left_blur += 1j * np.cos(self.y[0, y_bins] / self.y_tolerance)
             left = sp.csr_matrix(
                 (
-                    self.data[y_bins],
+                    left_blur * self.data[y_bins],
                     (y_bins, y_bins),
                 ),
             )
 
-            if self.blur:
-                blur = self._blur(other, link)
-            else:
-                blur = 1
-
+            right_blur = 1
+            if other.x_tolerance > 0:
+                right_blur *= np.sin(other.x[0, link[1]] / other.x_tolerance)
+                right_blur -= 1j * np.cos(other.x[0, link[1]] / other.x_tolerance)
             right = sp.csr_matrix(
                 (
-                    blur * other.data[link[1]],
+                    right_blur * other.data[link[1]],
                     (link[0], link[1]),
                 ),
             )
@@ -397,7 +390,7 @@ class vector:
             same = self.x[0, link[0]] == self.T.y[0, link[1]]
             link = link[:, same]
 
-            norm_ = self.__matmul__(self.T, link) ** -0.5
+            norm_ = self.__matmul__(self.T.conj(), link) ** -0.5
 
             # set vector norm to sqrt sum if vector is boolean
             # enabling vector multiplication to count "blurry" matches
@@ -405,7 +398,7 @@ class vector:
                 same = self.y[0, link[0]] == self.T.x[0, link[1]]
                 link = link[:, same]
 
-                norm_ *= self.__matmul__(self.T, link).data ** 0.5
+                norm_ *= self.__matmul__(self.T.conj(), link).data ** 0.5
 
             norm_.y_tolerance = 0
             self.x_tolerance = 0
@@ -468,7 +461,7 @@ class vector:
 
         result = sum(
             [
-                self.__matmul__(other.xslice(i, i + chunk_size).T)
+                self.__matmul__(other.xslice(i, i + chunk_size).T.conj())
                 for i in np.arange(0, other.shape[0], chunk_size)
             ]
         )
@@ -510,7 +503,6 @@ def sum(vectors):
                 np.max([v.shape[0] for v in vectors]),
                 np.max([v.shape[1] for v in vectors]),
             ),
-            np.array([v.blur for v in vectors]).all(),
         )
 
     return result
