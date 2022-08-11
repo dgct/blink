@@ -11,6 +11,7 @@ class vector:
         x_tolerance=0.0,
         y_tolerance=0.0,
         shape=None,
+        **kwargs,
     ):
 
         # default to rows if x is empty and y is list of numpy arrays
@@ -43,6 +44,26 @@ class vector:
         self.x = x[:, sort_idx]
         self.y = y[:, sort_idx]
         self.data = data[sort_idx]
+
+        if kwargs.get("_x_phase") is not None:
+            self._x_phase = kwargs["_x_phase"]
+        elif self.x_tolerance == 0:
+            self._x_phase = np.ones_like(self.data, dtype=complex)
+        else:
+            self._x_phase = np.sin(
+                0.5 * np.pi * self.x[0] / self.x_tolerance, dtype=complex
+            )
+            self._x_phase += 1j * np.cos(0.5 * np.pi * self.x[0] / self.x_tolerance)
+
+        if kwargs.get("_y_phase") is not None:
+            self._y_phase = kwargs["_y_phase"]
+        elif self.y_tolerance == 0:
+            self._y_phase = np.ones_like(self.data, dtype=complex)
+        else:
+            self._y_phase = np.sin(
+                0.5 * np.pi * self.y[0] / self.y_tolerance, dtype=complex
+            )
+            self._y_phase += 1j * np.cos(0.5 * np.pi * self.y[0] / self.y_tolerance)
 
         if shape is None:
             xmax, ymax = 0, 0
@@ -110,12 +131,16 @@ class vector:
         self.x = self.x[:, diff]
         self.y = self.y[:, diff]
         self.data = np.add.reduceat(self.data, diff_edge, dtype=self.data.dtype)
+        self._x_phase = self._x_phase[diff]
+        self._y_phase = self._y_phase[diff]
 
     def eliminate_zeros(self):
         mask = ~np.isclose(self.data, 0)
         self.x = self.x[:, mask]
         self.y = self.y[:, mask]
         self.data = self.data[mask]
+        self._x_phase = self._x_phase[mask]
+        self._y_phase = self._y_phase[mask]
 
     #################
     # Operators
@@ -226,30 +251,16 @@ class vector:
         if len(y_bins) == 0:
             result = sp.coo_matrix((0, 0))
         else:
-            left_phase = 1 + 0j
-            if self.y_tolerance > 0:
-                left_phase *= np.sin(0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance)
-                left_phase += 1j * np.cos(
-                    0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance
-                )
             left = sp.csr_matrix(
                 (
-                    left_phase * self.data[y_bins],
+                    (self._y_phase * self.data)[y_bins],
                     (y_bins, y_bins),
                 ),
             )
 
-            right_phase = 1 + 0j
-            if other.x_tolerance > 0:
-                right_phase *= np.sin(
-                    0.5 * np.pi * other.x[0, link[1]] / other.x_tolerance
-                )
-                right_phase -= 1j * np.cos(
-                    0.5 * np.pi * other.x[0, link[1]] / other.x_tolerance
-                )
             right = sp.csr_matrix(
                 (
-                    right_phase * other.data[link[1]],
+                    (other._x_phase.conj() * other.data)[link[1]],
                     (link[0], link[1]),
                 ),
             )
@@ -314,6 +325,8 @@ class vector:
             self.data[mask],
             self.x_tolerance,
             self.y_tolerance,
+            _x_phase=self._x_phase[mask],
+            _y_phase=self._y_phase[mask],
         )
         return result
 
@@ -353,6 +366,8 @@ class vector:
             self.y_tolerance,
             self.x_tolerance,
             (self.shape[1], self.shape[0]),
+            _x_phase=self._y_phase,
+            _y_phase=self._x_phase,
         )
 
         return result
@@ -371,6 +386,8 @@ class vector:
             self.x_tolerance,
             self.y_tolerance,
             self.shape,
+            _x_phase=self._x_phase[same],
+            _y_phase=self._y_phase[same],
         )
 
         return result
