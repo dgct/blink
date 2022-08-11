@@ -14,7 +14,7 @@ class vector:
     ):
 
         # default to rows if x is empty and y is list of numpy arrays
-        if (x.size == 0) and isinstance(y, list):
+        if np.size(x) == 0 and isinstance(y, list):
             x = np.concatenate([[i] * len(yy) for i, yy in enumerate(y)])
             y = np.concatenate(y)
             if isinstance(data, list):
@@ -123,7 +123,7 @@ class vector:
 
     def _operate(self, other, func):
         if (
-            not isinstance(other, (bool, float, int, complex))
+            not isinstance(other, (bool, float, int))
             and other.dtype.kind not in "biufc"
         ):
             raise ValueError("{} is not a scalar or array of shape data".format(other))
