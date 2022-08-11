@@ -304,6 +304,8 @@ class vector:
             self.data[mask],
             self.x_tolerance,
             self.y_tolerance,
+            _x_phase=self._x_phase[mask],
+            _y_phase=self._y_phase[mask],
         )
         return result
 
@@ -354,6 +356,8 @@ class vector:
             self.x_tolerance,
             self.y_tolerance,
             self.shape,
+            _x_phase=self._x_phase,
+            _y_phase=self._y_phase,
         )
 
         return result
@@ -436,6 +440,8 @@ class vector:
                 self.x_tolerance,
                 self.y_tolerance,
                 self.shape,
+                _x_phase=self._x_phase,
+                _y_phase=self._y_phase,
             )
 
             return result
