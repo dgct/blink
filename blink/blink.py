@@ -122,10 +122,7 @@ class vector:
     #################
 
     def _operate(self, other, func):
-        if (
-            not isinstance(other, (bool, float, int))
-            and other.dtype.kind not in "biufc"
-        ):
+        if not isinstance(other, (bool, float, int)) and other.dtype.kind not in "biuf":
             raise ValueError("{} is not a scalar or array of shape data".format(other))
         self.data = func(self.data, other)
 
@@ -229,30 +226,30 @@ class vector:
         if len(y_bins) == 0:
             result = sp.coo_matrix((0, 0))
         else:
-            left_blur = 1 + 0j
+            left_phase = 1 + 0j
             if self.y_tolerance > 0:
-                left_blur *= np.sin(0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance)
-                left_blur += 1j * np.cos(
+                left_phase *= np.sin(0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance)
+                left_phase += 1j * np.cos(
                     0.5 * np.pi * self.y[0, y_bins] / self.y_tolerance
                 )
             left = sp.csr_matrix(
                 (
-                    left_blur * self.data[y_bins],
+                    left_phase * self.data[y_bins],
                     (y_bins, y_bins),
                 ),
             )
 
-            right_blur = 1 + 0j
+            right_phase = 1 + 0j
             if other.x_tolerance > 0:
-                right_blur *= np.sin(
+                right_phase *= np.sin(
                     0.5 * np.pi * other.x[0, link[1]] / other.x_tolerance
                 )
-                right_blur -= 1j * np.cos(
+                right_phase -= 1j * np.cos(
                     0.5 * np.pi * other.x[0, link[1]] / other.x_tolerance
                 )
             right = sp.csr_matrix(
                 (
-                    right_blur * other.data[link[1]],
+                    right_phase * other.data[link[1]],
                     (link[0], link[1]),
                 ),
             )
