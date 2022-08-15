@@ -11,7 +11,6 @@ class vector:
         x_tolerance=0.0,
         y_tolerance=0.0,
         shape=None,
-        **kwargs,
     ):
 
         # default to rows if x is empty and y is list of numpy arrays
@@ -44,26 +43,6 @@ class vector:
         self.x = x[:, sort_idx]
         self.y = y[:, sort_idx]
         self.data = data[sort_idx]
-
-        if kwargs.get("_x_phase") is not None:
-            self._x_phase = kwargs["_x_phase"]
-        elif self.x_tolerance == 0:
-            self._x_phase = np.ones_like(self.data, dtype=complex)
-        else:
-            self._x_phase = np.sin(
-                0.5 * np.pi * self.x[0] / self.x_tolerance, dtype=complex
-            )
-            self._x_phase += 1j * np.cos(0.5 * np.pi * self.x[0] / self.x_tolerance)
-
-        if kwargs.get("_y_phase") is not None:
-            self._y_phase = kwargs["_y_phase"]
-        elif self.y_tolerance == 0:
-            self._y_phase = np.ones_like(self.data, dtype=complex)
-        else:
-            self._y_phase = np.sin(
-                0.5 * np.pi * self.y[0] / self.y_tolerance, dtype=complex
-            )
-            self._y_phase += 1j * np.cos(0.5 * np.pi * self.y[0] / self.y_tolerance)
 
         if shape is None:
             xmax, ymax = 0, 0
@@ -121,6 +100,29 @@ class vector:
 
         return link
 
+    def _phase(self, axis, link):
+        if axis == "y":
+            mask0 = 0
+            mask1 = np.unique(link[0])
+
+        elif axis == "x":
+            mask0 = link[2]
+            mask1 = link[1]
+
+        tolerance = self.__dict__[axis + "_tolerance"]
+        axis = self.__dict__[axis]
+
+        if tolerance == 0:
+            phase = np.ones_like(axis[mask0, mask1], dtype=complex)
+        else:
+            phase = np.sin(0.5 * np.pi * axis[mask0, mask1] / tolerance, dtype=complex)
+            phase += 1j * np.cos(0.5 * np.pi * axis[mask0, mask1] / tolerance)
+
+        if not isinstance(mask0, int):
+            phase = np.conj(phase)
+
+        return phase
+
     def sum_duplicates(self):
         diff_x = self.x[0, 1:] != self.x[0, :-1]
         diff_y = self.y[0, 1:] != self.y[0, :-1]
@@ -131,16 +133,12 @@ class vector:
         self.x = self.x[:, diff]
         self.y = self.y[:, diff]
         self.data = np.add.reduceat(self.data, diff_edge, dtype=self.data.dtype)
-        self._x_phase = self._x_phase[diff]
-        self._y_phase = self._y_phase[diff]
 
     def eliminate_zeros(self):
         mask = ~np.isclose(self.data, 0)
         self.x = self.x[:, mask]
         self.y = self.y[:, mask]
         self.data = self.data[mask]
-        self._x_phase = self._x_phase[mask]
-        self._y_phase = self._y_phase[mask]
 
     #################
     # Operators
@@ -152,18 +150,12 @@ class vector:
         self.data = func(self.data, other)
 
     def __eq__(self, other):
-        result = True
-        result &= (self.x == other.x).all()
-        result &= (self.y == other.y).all()
-        result &= (self.data == other.data).all()
+        result = np.isclose((self - other).data, 0).all()
 
         return result
 
     def __neq__(self, other):
-        result = False
-        result |= (self.x != other.x).any()
-        result |= (self.y != other.y).any()
-        result |= (self.data != other.data).any()
+        result = not (self == other)
 
         return result
 
@@ -251,16 +243,18 @@ class vector:
         if len(y_bins) == 0:
             result = sp.coo_matrix((0, 0))
         else:
+            left_phase = self._phase("y", link)
             left = sp.csr_matrix(
                 (
-                    (self._y_phase * self.data)[y_bins],
+                    left_phase * self.data[y_bins],
                     (y_bins, y_bins),
                 ),
             )
 
+            right_phase = other._phase("x", link)
             right = sp.csr_matrix(
                 (
-                    (other._x_phase.conj() * other.data)[link[1]],
+                    right_phase * other.data[link[1]],
                     (link[0], link[1]),
                 ),
             )
@@ -304,8 +298,6 @@ class vector:
             self.data[mask],
             self.x_tolerance,
             self.y_tolerance,
-            _x_phase=self._x_phase[mask],
-            _y_phase=self._y_phase[mask],
         )
         return result
 
@@ -327,8 +319,6 @@ class vector:
             self.data[mask],
             self.x_tolerance,
             self.y_tolerance,
-            _x_phase=self._x_phase[mask],
-            _y_phase=self._y_phase[mask],
         )
         return result
 
@@ -356,8 +346,6 @@ class vector:
             self.x_tolerance,
             self.y_tolerance,
             self.shape,
-            _x_phase=self._x_phase,
-            _y_phase=self._y_phase,
         )
 
         return result
@@ -370,8 +358,6 @@ class vector:
             self.y_tolerance,
             self.x_tolerance,
             (self.shape[1], self.shape[0]),
-            _x_phase=self._y_phase,
-            _y_phase=self._x_phase,
         )
 
         return result
@@ -390,8 +376,6 @@ class vector:
             self.x_tolerance,
             self.y_tolerance,
             self.shape,
-            _x_phase=self._x_phase[same],
-            _y_phase=self._y_phase[same],
         )
 
         return result
@@ -440,8 +424,6 @@ class vector:
                 self.x_tolerance,
                 self.y_tolerance,
                 self.shape,
-                _x_phase=self._x_phase,
-                _y_phase=self._y_phase,
             )
 
             return result
