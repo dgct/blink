@@ -159,6 +159,26 @@ class vector:
 
         return result
 
+    def __lt__(self, other):
+        result = self.copy()
+        result._operate(other, lambda i, o: i < o)
+        return result
+
+    def __gt__(self, other):
+        result = self.copy()
+        result._operate(other, lambda i, o: i > o)
+        return result
+
+    def __le__(self, other):
+        result = self.copy()
+        result._operate(other, lambda i, o: i <= o)
+        return result
+
+    def __ge__(self, other):
+        result = self.copy()
+        result._operate(other, lambda i, o: i >= o)
+        return result
+
     def __add__(self, other):
         if isinstance(other, self.__class__):
             result = sum([self, other])
@@ -225,7 +245,7 @@ class vector:
         self._operate(other, lambda i, o: i**o)
         return self
 
-    def __matmul__(self, other, link=None):
+    def __matmul__(self, other, link=None, mask=None):
         if not isinstance(other, self.__class__):
             raise NotImplementedError(
                 "vector multiplication only defined between blink vectors"
@@ -238,6 +258,10 @@ class vector:
 
         if link is None:
             link = self._link(other)
+        if mask is not None:
+            out_coord = self.x[0, link[0]] + 1j * other.y[0, link[1]]
+            mask_coord = mask.x[0] + 1j * mask.y[0]
+            link = link[:, np.isin(out_coord, mask_coord)]
         y_bins = np.unique(link[0])
 
         if len(y_bins) == 0:
@@ -310,6 +334,27 @@ class vector:
                 mask &= args[0] <= self.y[0]
             if args[1] is not None:
                 mask &= self.y[0] < args[1]
+        else:
+            raise ValueError("args must be on length 1 or 2")
+
+        result = self.__class__(
+            self.x[:, mask],
+            self.y[:, mask],
+            self.data[mask],
+            self.x_tolerance,
+            self.y_tolerance,
+        )
+        return result
+
+    def clip(self, *args):
+        if len(args) == 1:
+            mask = self.data >= args
+        elif len(args) == 2:
+            mask = np.ones_like(self.data, dtype=bool)
+            if args[0] is not None:
+                mask &= args[0] <= self.data
+            if args[1] is not None:
+                mask &= self.data <= args[1]
         else:
             raise ValueError("args must be on length 1 or 2")
 
