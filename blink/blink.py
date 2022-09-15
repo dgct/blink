@@ -162,21 +162,25 @@ class vector:
     def __lt__(self, other):
         result = self.copy()
         result._operate(other, lambda i, o: i < o)
+        result.eliminate_zeros()
         return result
 
     def __gt__(self, other):
         result = self.copy()
         result._operate(other, lambda i, o: i > o)
+        result.eliminate_zeros()
         return result
 
     def __le__(self, other):
         result = self.copy()
         result._operate(other, lambda i, o: i <= o)
+        result.eliminate_zeros()
         return result
 
     def __ge__(self, other):
         result = self.copy()
         result._operate(other, lambda i, o: i >= o)
+        result.eliminate_zeros()
         return result
 
     def __add__(self, other):
@@ -260,7 +264,7 @@ class vector:
             link = self._link(other)
         if mask is not None:
             out_coord = self.x[0, link[0]] + 1j * other.y[0, link[1]]
-            mask_coord = mask.x[0] + 1j * mask.y[0]
+            mask_coord = mask[0] + 1j * mask[1]
             link = link[:, np.isin(out_coord, mask_coord)]
         y_bins = np.unique(link[0])
 
@@ -425,7 +429,7 @@ class vector:
 
         return result
 
-    def norm(self, kind="l2", chunk_size=1000):
+    def norm(self, kind="l2", chunk_size=100):
         def l2norm(self):
             link = self._link(self.T)
             same = self.x[0, link[0]] == self.T.y[0, link[1]]
@@ -495,14 +499,14 @@ class vector:
 
         return result
 
-    def score(self, other, norm="l2", chunk_size=1000):
+    def score(self, other, norm="l2", chunk_size=10, mask=None):
         if norm is not None:
             self = self.norm(norm)
             other = other.norm(norm)
 
         result = sum(
             [
-                self.__matmul__(other.xslice(i, i + chunk_size).T)
+                self.__matmul__(other.xslice(i, i + chunk_size).T, mask=mask)
                 for i in np.arange(0, other.shape[0], chunk_size)
             ]
         )
