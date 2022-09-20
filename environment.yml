@@ -1,6 +1,0 @@
-name: blink
-dependencies:
-  - python=3.9
-  - numpy
-  - scipy
-  - setuptools
