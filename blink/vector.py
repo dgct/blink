@@ -264,7 +264,7 @@ class vector:
             link = self._link(other)
         if mask is not None:
             out_coord = self.x[0, link[0]] + 1j * other.y[0, link[1]]
-            mask_coord = mask[0] + 1j * mask[1]
+            mask_coord = mask.x[0] + 1j * mask.y[0]
             link = link[:, np.isin(out_coord, mask_coord)]
         y_bins = np.unique(link[0])
 
