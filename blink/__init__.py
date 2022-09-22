@@ -1,1 +1,1 @@
-from .. import blink
+from .vector import vector

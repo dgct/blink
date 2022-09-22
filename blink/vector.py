@@ -499,7 +499,7 @@ class vector:
 
         return result
 
-    def score(self, other, norm="l2", chunk_size=10, mask=None):
+    def score(self, other, norm="l2", chunk_size=1000, mask=None):
         if norm is not None:
             self = self.norm(norm)
             other = other.norm(norm)
