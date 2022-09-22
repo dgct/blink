@@ -1,1 +1,1 @@
-from . import blink
+from .. import blink
