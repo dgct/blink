@@ -100,10 +100,32 @@ class vector:
 
         return link
 
-    def _phase(self, axis, link):
+    def _include(self, other, link, include):
+        if isinstance(include, self.__class__):
+            include = [include]
+
+        out_coord = self.x[0, link[0]] + 1j * other.y[0, link[1]]
+        include_coord = np.concatenate([i.x[0] + 1j * i.y[0] for i in include])
+
+        new_link = link[:, np.isin(out_coord, include_coord)]
+
+        return new_link
+
+    def _exclude(self, other, link, exclude):
+        if isinstance(exclude, self.__class__):
+            exclude = [exclude]
+
+        out_coord = self.x[0, link[0]] + 1j * other.y[0, link[1]]
+        exclude_coord = np.concatenate([e.x[0] + 1j * e.y[0] for e in exclude])
+
+        new_link = link[:, ~np.isin(out_coord, exclude_coord)]
+
+        return new_link
+
+    def _phase(self, link, axis):
         if axis == "y":
             mask0 = 0
-            mask1 = np.unique(link[0])
+            mask1 = link
 
         elif axis == "x":
             mask0 = link[2]
@@ -159,39 +181,39 @@ class vector:
 
         return result
 
-    def __lt__(self, other):
-        result = self.copy()
-        result._operate(other, lambda i, o: i < o)
-        result.eliminate_zeros()
-        return result
+    # def __lt__(self, other):
+    #     result = self.copy()
+    #     result._operate(other, lambda i, o: i < o)
+    #     result.eliminate_zeros()
+    #     return result
 
-    def __gt__(self, other):
-        result = self.copy()
-        result._operate(other, lambda i, o: i > o)
-        result.eliminate_zeros()
-        return result
+    # def __gt__(self, other):
+    #     result = self.copy()
+    #     result._operate(other, lambda i, o: i > o)
+    #     result.eliminate_zeros()
+    #     return result
 
-    def __le__(self, other):
-        result = self.copy()
-        result._operate(other, lambda i, o: i <= o)
-        result.eliminate_zeros()
-        return result
+    # def __le__(self, other):
+    #     result = self.copy()
+    #     result._operate(other, lambda i, o: i <= o)
+    #     result.eliminate_zeros()
+    #     return result
 
-    def __ge__(self, other):
-        result = self.copy()
-        result._operate(other, lambda i, o: i >= o)
-        result.eliminate_zeros()
-        return result
+    # def __ge__(self, other):
+    #     result = self.copy()
+    #     result._operate(other, lambda i, o: i >= o)
+    #     result.eliminate_zeros()
+    #     return result
 
-    def __add__(self, other):
-        if isinstance(other, self.__class__):
-            result = sum([self, other])
+    # def __add__(self, other):
+    #     if isinstance(other, self.__class__):
+    #         result = sum([self, other])
 
-            return result
+    #         return result
 
-        result = self.copy()
-        result._operate(other, lambda i, o: i + o)
-        return result
+    #     result = self.copy()
+    #     result._operate(other, lambda i, o: i + o)
+    #     return result
 
     def __sub__(self, other):
         return self + (-1 * other)
@@ -249,7 +271,13 @@ class vector:
         self._operate(other, lambda i, o: i**o)
         return self
 
-    def __matmul__(self, other, link=None, mask=None):
+    def __matmul__(
+        self,
+        other,
+        link=None,
+        include=None,
+        exclude=None,
+    ):
         if not isinstance(other, self.__class__):
             raise NotImplementedError(
                 "vector multiplication only defined between blink vectors"
@@ -262,16 +290,17 @@ class vector:
 
         if link is None:
             link = self._link(other)
-        if mask is not None:
-            out_coord = self.x[0, link[0]] + 1j * other.y[0, link[1]]
-            mask_coord = mask.x[0] + 1j * mask.y[0]
-            link = link[:, np.isin(out_coord, mask_coord)]
+        if include is not None:
+            link = self._include(other, link, include)
+        if exclude is not None:
+            link = self._exclude(other, link, exclude)
+
         y_bins = np.unique(link[0])
 
-        if len(y_bins) == 0:
+        if len(link[0]) == 0:
             result = sp.coo_matrix((0, 0))
         else:
-            left_phase = self._phase("y", link)
+            left_phase = self._phase(y_bins, "y")
             left = sp.csr_matrix(
                 (
                     left_phase * self.data[y_bins],
@@ -279,7 +308,7 @@ class vector:
                 ),
             )
 
-            right_phase = other._phase("x", link)
+            right_phase = other._phase(link, "x")
             right = sp.csr_matrix(
                 (
                     right_phase * other.data[link[1]],
@@ -499,14 +528,23 @@ class vector:
 
         return result
 
-    def score(self, other, norm="l2", chunk_size=1000, mask=None):
+    def score(
+        self,
+        other,
+        norm="l2",
+        chunk_size=1000,
+        include=None,
+        exclude=None,
+    ):
         if norm is not None:
             self = self.norm(norm)
             other = other.norm(norm)
 
         result = sum(
             [
-                self.__matmul__(other.xslice(i, i + chunk_size).T, mask=mask)
+                self.__matmul__(
+                    other.xslice(i, i + chunk_size).T, include=include, exclude=exclude
+                )
                 for i in np.arange(0, other.shape[0], chunk_size)
             ]
         )
