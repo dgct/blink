@@ -205,15 +205,15 @@ class vector:
     #     result.eliminate_zeros()
     #     return result
 
-    # def __add__(self, other):
-    #     if isinstance(other, self.__class__):
-    #         result = sum([self, other])
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            result = sum([self, other])
 
-    #         return result
+            return result
 
-    #     result = self.copy()
-    #     result._operate(other, lambda i, o: i + o)
-    #     return result
+        result = self.copy()
+        result._operate(other, lambda i, o: i + o)
+        return result
 
     def __sub__(self, other):
         return self + (-1 * other)
