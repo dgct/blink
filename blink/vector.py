@@ -15,7 +15,7 @@ class vector:
 
         # default to rows if x is empty and y is list of numpy arrays
         if np.size(x) == 0 and isinstance(y, list):
-            x = np.concatenate([[i] * len(yy) for i, yy in enumerate(y)])
+            x = np.concatenate([[i] * yy.shape[-1] for i, yy in enumerate(y)])
             y = np.concatenate(y, axis=-1)
             if isinstance(data, list):
                 data = np.concatenate(data)
