@@ -39,23 +39,57 @@ class vector:
         self.x_tolerance = x_tolerance
         self.y_tolerance = y_tolerance
 
-        sort_idx = np.argsort(y[0] + 1j * x[0])
-        self.x = x[:, sort_idx]
-        self.y = y[:, sort_idx]
-        self.data = data[sort_idx]
+        self.x = x
+        self.y = y
+        self.data = data
 
-        if shape is None:
-            xmax, ymax = 0, 0
-            if len(self.x[0]) > 0:
-                xmax += self.x[0].max() + (self.x[0].dtype.kind in "iu")
-            if len(self.y[0]) > 0:
-                ymax += self.y[0].max() + (self.y[0].dtype.kind in "iu")
-            shape = (xmax, ymax)
-        self.shape = shape
+        self.clean()
 
-        if data.size > 0:
-            self.sum_duplicates()
-            self.eliminate_zeros()
+        if shape is not None:
+            self.shape = shape
+
+    #################
+    # Properties
+    #################
+
+    @property
+    def x(self):
+        return self.x
+
+    @x.setter
+    def x(self, value):
+        value = np.array(value, copy=False, ndmin=2)
+
+        if len(self.x[0]) != len(value[0]):
+            raise ValueError("old x and new x must be same length")
+
+        self.x = value
+        self.clean()
+
+    @property
+    def y(self):
+        return self.y
+
+    @y.setter
+    def y(self, value):
+        value = np.array(value, copy=False, ndmin=2)
+
+        if len(self.y[0]) != len(value[0]):
+            raise ValueError("old y and new y must be same length")
+
+        self.y = value
+        self.clean()
+
+    @property
+    def data(self):
+        return self.data
+
+    @data.setter
+    def data(self, value):
+        if len(self.data) != len(value):
+            raise ValueError("old data and new data must be same length")
+
+        self.data = value
 
     #################
     # Blink Methods
@@ -161,6 +195,24 @@ class vector:
         self.x = self.x[:, mask]
         self.y = self.y[:, mask]
         self.data = self.data[mask]
+
+    def clean(self):
+        sort_idx = np.argsort(self.y[0] + 1j * self.x[0])
+
+        self.x = self.x[:, sort_idx]
+        self.y = self.y[:, sort_idx]
+        self.data = self.data[sort_idx]
+
+        xmax, ymax = 0, 0
+        if len(self.x[0]) > 0:
+            xmax += self.x[0].max() + (self.x[0].dtype.kind in "iu")
+        if len(self.y[0]) > 0:
+            ymax += self.y[0].max() + (self.y[0].dtype.kind in "iu")
+        self.shape = (xmax, ymax)
+
+        if self.data.size > 0:
+            self.sum_duplicates()
+            self.eliminate_zeros()
 
     #################
     # Operators
