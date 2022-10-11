@@ -14,9 +14,12 @@ class vector:
         **kwargs,
     ):
 
-        x = kwargs.get("_x", x)
-        y = kwargs.get("_y", y)
-        data = kwargs.get("_data", data)
+        if np.size(x) == 0:
+            x = kwargs.get("_x", x)
+        if np.size(y) == 0:
+            y = kwargs.get("_y", y)
+        if data is None:
+            data = kwargs.get("_data", data)
 
         # default to rows if x is empty and y is list of numpy arrays
         if np.size(x) == 0 and isinstance(y, list):
@@ -171,7 +174,7 @@ class vector:
             mask1 = link[1]
 
         tolerance = self.__dict__[axis + "_tolerance"]
-        axis = self.__dict__[axis]
+        axis = self.__dict__["_" + axis]
 
         if tolerance == 0:
             phase = np.ones_like(axis[mask0, mask1], dtype=complex)
