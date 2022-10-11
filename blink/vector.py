@@ -199,9 +199,9 @@ class vector:
     def clean(self):
         sort_idx = np.argsort(self.y[0] + 1j * self.x[0])
 
-        self.x = self.x[:, sort_idx]
-        self.y = self.y[:, sort_idx]
-        self.data = self.data[sort_idx]
+        self._x = self.x[:, sort_idx]
+        self._y = self.y[:, sort_idx]
+        self._data = self.data[sort_idx]
 
         xmax, ymax = 0, 0
         if len(self.x[0]) > 0:
