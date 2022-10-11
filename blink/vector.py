@@ -11,7 +11,12 @@ class vector:
         x_tolerance=0.0,
         y_tolerance=0.0,
         shape=None,
+        **kwargs,
     ):
+
+        x = kwargs.get("_x", x)
+        y = kwargs.get("_y", y)
+        data = kwargs.get("_data", data)
 
         # default to rows if x is empty and y is list of numpy arrays
         if np.size(x) == 0 and isinstance(y, list):
