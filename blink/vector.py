@@ -333,8 +333,11 @@ class vector:
     # Public Methods
     #################
 
-    def copy(self):
-        result = self.__class__(**self.__dict__.copy())
+    def copy(self, **kwargs):
+        new_args = self.__dict__.copy()
+        new_args.update(kwargs)
+
+        result = self.__class__(**new_args)
         return result
 
     def xslice(self, *args):
