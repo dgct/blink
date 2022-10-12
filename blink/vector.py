@@ -594,7 +594,7 @@ class vector:
     def score(
         self,
         other,
-        norm="l2",
+        norm=None,
         chunk_size=1000,
         include=None,
         exclude=None,
