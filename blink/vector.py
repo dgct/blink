@@ -402,7 +402,7 @@ class vector:
 
     def xslice(self, *args):
         if len(args) == 1:
-            mask = self.x[0] == args
+            mask = np.isin(self.x[0], args)
         elif len(args) == 2:
             mask = np.ones_like(self.x[0], dtype=bool)
             if args[0] is not None:
@@ -423,7 +423,7 @@ class vector:
 
     def yslice(self, *args):
         if len(args) == 1:
-            mask = self.y[0] == args
+            mask = np.isin(self.y[0], args)
         elif len(args) == 2:
             mask = np.ones_like(self.y[0], dtype=bool)
             if args[0] is not None:
